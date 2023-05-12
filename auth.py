@@ -21,6 +21,12 @@ class SpotifyAPI(object):
     client_secret = None
     token_url = None
     base_url = "https://api.spotify.com"
+    default_limit = 20
+    min_limit = 0
+    max_limit = 50
+    default_offset = 0
+    min_offset = 0
+    max_offset = 1000
 
     def __init__(self, client_id, client_secret, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,6 +34,11 @@ class SpotifyAPI(object):
         self.client_secret = client_secret
         self.token_url = token_url
 
+    '''
+    Authorization
+
+    Reference: https://developer.spotify.com/documentation/web-api/concepts/access-token
+    '''
     def get_client_credentials(self):
         '''
         returns base64 encoded string
@@ -72,17 +83,6 @@ class SpotifyAPI(object):
         self.access_expired = expires < now
         return True
     
-    def get_access_token(self):     
-        access_token = self.access_token
-        expires = self.access_token_expires
-        now = datetime.datetime.now()
-
-        if access_token == None or expires < now:
-            self.perform_auth()
-            return self.get_access_token()
-        
-        return access_token
-    
     def get_access_headers(self):
         access_token = self.get_access_token()
         headers = {
@@ -90,40 +90,149 @@ class SpotifyAPI(object):
         }
         return headers
     
-    def get_response(self, id, resource_type="albums", version="v1"):
-        endpoint = f"{self.base_url}/{version}/{resource_type}/{id}"
+    def get_access_token(self):     
+        access_token = self.access_token
+        expires = self.access_token_expires
+        now = datetime.datetime.now()
+
+        # if the access token was not given/expired,
+        # get/refresh the access token
+        if access_token == None or expires < now:
+            self.perform_auth()
+            return self.get_access_token()
+        
+        return access_token
+    
+    '''
+    Helper functions
+    '''  
+    def convert_list_to_string(self, list_items):
+        item_string = ",".join([f"{item}" for item in list_items])
+        return item_string
+    
+    def set_limit(self, limit:int, dict):
+        if limit != self.default_limit:
+            if limit < self.min_limit:
+                limit = self.min_limit
+            if limit > self.max_limit:
+                limit = self.max_limit
+            dict["limit"] = limit
+        return dict
+    
+    def set_offset(self, offset:int, dict):
+        if offset != self.default_offset:
+            if offset < self.min_offset:
+                offset = self.min_offset
+            if offset > self.max_offset:
+                offset = self.max_offset
+            dict["offset"] = offset
+        return dict
+    
+    def set_market(self, market:str, dict):
+        if market != "":
+            dict["market"] = market
+        return dict
+    
+    def create_query(self, dict, market="", limit=default_limit, offset=default_offset):
+        dict = self.set_market(market, dict)
+        dict = self.set_limit(limit, dict)
+        dict = self.set_offset(offset, dict)
+        if dict == {}:
+             return None
+        return dict
+          
+    def get_response(self, id, resource_type="albums", version="v1", query=None):
+        endpoint = f"{self.base_url}/{version}/{resource_type}"
+        if id != -1:
+            endpoint += f"/{id}"
+        if query != None:
+            endpoint += f"?{query}"
+
+        print(endpoint)
+
         headers = self.get_access_headers()
         response = requests.get(endpoint, headers=headers)
 
         if response.status_code not in range(200, 299):
-            return {}   
+            return response.json()   
         return response.json()
 
-    def search(self, query, search_type='artist'):
-        endpoint = f"{self.base_url}/v1/search"
-        headers = self.get_access_headers()
+    '''
+    GET /search
+    Required Parameters:
+        q: string or dictionary
+            A string will refer to a single track, album, artist, etc.
+            A dictionary should stay within the available filters
 
-        data = urlencode({"q": query, "type": search_type.lower()})
+            available filters: album, artist, track, year,
+            upc, tag:hipster, tag:new, isrc, genre
 
-        lookup_url = f"{endpoint}?{data}"
-        response = requests.get(lookup_url, headers=headers)
-        data = response.json()
+            NOTE: tag:hipster, tag:new, and upc are only
+            available while searching albums  
+        type: string or array of strings
+            allowed values: album, artist, playlist, track,
+            show, episode, audiobook
 
-        if response.status_code not in range(200, 299):
-            return {}
-                
-        return data
+    Returns: Dictionary
+
+    Reference Link: https://developer.spotify.com/documentation/web-api/reference/search
+    '''
+    def search(self, query:str|dict, search_type:str="albums", market:str="", limit:int=default_limit, offset:int=default_offset, include_external:str=""):
+        # if query is a dictionary, change it to a string where each key-value pair is separated by spaces   
+        if isinstance(query, dict):
+            query = " ".join([f"{k}:{v}" for k, v in query.items()])
+
+        query_dict = {"q": query, "type": search_type.lower()}
+        query_dict = self.create_query(query_dict, market, limit, offset)
+        if include_external == "audio":
+            query_dict["include_external"] = include_external
+
+        query_params = urlencode(query_dict)
+        return self.get_search_response(query_params)
+
+    def get_search_response(self, query):
+        return self.get_response(-1, resource_type="search", query=query)
+
+    '''
+    GET /albums
+    Required Parameter(s):
+        id
+    '''
+    def get_album(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
+        if "/" in _id:
+            query_params = self.create_query({}, market=market, limit=limit, offset=offset)    
+        else: 
+            query_params = self.create_query({}, market=market)
+        if query_params != None:
+            query_params = urlencode(query_params)
+        return self.get_response(_id, resource_type="albums", query=query_params)
     
-    def get_albums(self, _id=None):
-        return self.get_response(_id, resource_type="albums")
+    def get_albums(self, _ids:list, market:str=""):
+        if len(_ids) > 20:
+            raise Exception("Maximum number of ids exceeded")
+
+        ids = self.convert_list_to_string(_ids)
+        query_params = {"ids": ids}
+        query_params = self.create_query(query_params, market=market)
+        query_params = urlencode(query_params)
     
-    def get_artists(self, _id=None):
+        return self.get_response(-1, resource_type="albums", query=query_params)
+    
+    def get_album_tracks(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
+        return self.get_album(f"{_id}/tracks", market=market, limit=limit, offset=offset)
+    
+    # 5/12/2023: Got {'status': 401, 'message': 'Invalid access token'} 
+    # Reason: Since this flow does not include authorization, only endpoints 
+    # that do not access user information can be accessed.
+    #
+    # will need to implement Authorization code flow
+    # Reference: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
+    def get_my_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        if query_params != None:
+            query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/albums", query=query_params)
+
+    def get_artists(self, _id):
         return self.get_response(_id, resource_type="artists")
-
-client = SpotifyAPI(client_id=client_id, client_secret=client_secret)
-
-#s = client.search("Time", search_type="track")
-
-s = client.get_albums("7fe4Mem3wWgY6zkTFuKUI9")
-
-print(s)
+    
