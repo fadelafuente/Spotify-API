@@ -106,9 +106,9 @@ class SpotifyAPI(object):
     '''
     Helper functions
     '''  
-    def convert_list_to_string(self, list_items):
+    def convert_list_to_dict(self, key, list_items):
         item_string = ",".join([f"{item}" for item in list_items])
-        return item_string
+        return {key: item_string}
     
     def set_limit(self, limit:int, dict):
         if limit != self.default_limit:
@@ -139,7 +139,7 @@ class SpotifyAPI(object):
         dict = self.set_offset(offset, dict)
         if dict == {}:
              return None
-        return dict
+        return urlencode(dict)
           
     def get_response(self, id, resource_type="albums", version="v1", query=None):
         endpoint = f"{self.base_url}/{version}/{resource_type}"
@@ -183,11 +183,9 @@ class SpotifyAPI(object):
             query = " ".join([f"{k}:{v}" for k, v in query.items()])
 
         query_dict = {"q": query, "type": search_type.lower()}
-        query_dict = self.create_query(query_dict, market, limit, offset)
         if include_external == "audio":
             query_dict["include_external"] = include_external
-
-        query_params = urlencode(query_dict)
+        query_params = self.create_query(query_dict, market, limit, offset)
         return self.get_search_response(query_params)
 
     def get_search_response(self, query):
@@ -203,18 +201,13 @@ class SpotifyAPI(object):
             query_params = self.create_query({}, market=market, limit=limit, offset=offset)    
         else: 
             query_params = self.create_query({}, market=market)
-        if query_params != None:
-            query_params = urlencode(query_params)
         return self.get_response(_id, resource_type="albums", query=query_params)
     
     def get_albums(self, _ids:list, market:str=""):
         if len(_ids) > 20:
             raise Exception("Maximum number of ids exceeded")
-
-        ids = self.convert_list_to_string(_ids)
-        query_params = {"ids": ids}
+        query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
-        query_params = urlencode(query_params)
     
         return self.get_response(-1, resource_type="albums", query=query_params)
     
@@ -229,10 +222,39 @@ class SpotifyAPI(object):
     # Reference: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
     def get_my_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        if query_params != None:
-            query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/albums", query=query_params)
 
-    def get_artists(self, _id):
+    '''
+    GET /Artists
+    Required Parameters:
+        id
+    '''
+    def get_artist(self, _id:int):
         return self.get_response(_id, resource_type="artists")
     
+    def get_artists(self, _ids:list):
+        if len(_ids) > 50:
+            raise Exception("Maximum number of ids exceeded")
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+
+        return self.get_response(-1, resource_type="artists", query=query_params)
+    
+    def get_artist_albums(self, _id:str, include_groups:list|None=None, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = {}
+        if include_groups != None:
+            query_params = self.convert_list_to_dict("include_groups", include_groups)
+        query_params = self.create_query(query_params, market=market, limit=limit, offset=offset)
+
+        return self.get_response(f"{_id}/albums", resource_type="artists", query=query_params)
+
+    # The documentation does not say the market string is required, and the example provided actually excludes it.
+    # However, excluding the market string here returns a 400 error, so default is set to 'US'
+    #
+    # Reference: https://developer.spotify.com/documentation/web-api/reference/get-an-artists-top-tracks
+    def get_artist_top_tracks(self, _id:int, market:str="US"):
+        query_params = self.create_query({}, market=market)
+        return self.get_response(f"{_id}/top-tracks", resource_type="artists", query=query_params)
+    
+    def get_artist_related_artists(self, _id:int):
+        return self.get_response(f"{_id}/related-artists", resource_type="artists")
