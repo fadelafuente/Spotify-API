@@ -194,13 +194,10 @@ class SpotifyAPI(object):
     '''
     GET /albums
     Required Parameter(s):
-        id
+        id(s) (str|list)
     '''
-    def get_album(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
-        if "/" in _id:
-            query_params = self.create_query({}, market=market, limit=limit, offset=offset)    
-        else: 
-            query_params = self.create_query({}, market=market)
+    def get_album(self, _id:str, market:str=""):
+        query_params = self.create_query({}, market=market)
         return self.get_response(_id, resource_type="albums", query=query_params)
     
     def get_albums(self, _ids:list, market:str=""):
@@ -212,7 +209,8 @@ class SpotifyAPI(object):
         return self.get_response(-1, resource_type="albums", query=query_params)
     
     def get_album_tracks(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
-        return self.get_album(f"{_id}/tracks", market=market, limit=limit, offset=offset)
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(f"{_id}/tracks", resource_type="albums", query=query_params)
     
     # 5/12/2023: Got {'status': 401, 'message': 'Invalid access token'} 
     # Reason: Since this flow does not include authorization, only endpoints 
@@ -227,7 +225,7 @@ class SpotifyAPI(object):
     '''
     GET /Artists
     Required Parameters:
-        id
+        id(s) (str|list)
     '''
     def get_artist(self, _id:int):
         return self.get_response(_id, resource_type="artists")
@@ -258,3 +256,51 @@ class SpotifyAPI(object):
     
     def get_artist_related_artists(self, _id:int):
         return self.get_response(f"{_id}/related-artists", resource_type="artists")
+
+    '''
+    GET /audiobooks
+    Required Parameters:
+        id(s) (str|list)
+
+    '''
+    def get_audiobook(self, _id:str, market:str=""):
+        query_params = self.create_query({}, market=market)
+        return self.get_response(_id, resource_type="audiobooks", query=query_params)
+    
+    def get_audiobooks(self, _ids:list, market:str=""):
+        if len(_ids) > 50:
+            raise Exception("Maximum number of ids exceeded")
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="audiobooks", query=query_params)
+    
+    def get_audiobook_chapters(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(f"{_id}/chapters", resource_type="audiobooks", query=query_params)
+    
+    '''
+    GET /browse/categories
+
+    locale parameter (not required): similar to the market code, but consists of a 
+        language code before the country code.
+        example used in documentation: es_MX, meaning "Spanish (Mexico)"
+
+    Reference: https://developer.spotify.com/documentation/web-api/reference/get-categories
+    '''
+    def get_browse_categories(self, country:str|None=None, locale:str|None=None, limit:int=default_limit, offset:int=default_offset):
+        query_params = {}
+        if country != None:
+            query_params["country"] = country
+        if locale != None:
+            query_params["locale"] = locale
+        query_params = self.create_query(query_params, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="browse/categories", query=query_params)
+    
+    def get_browse_category(self, category:str, country:str|None=None, locale:str|None=None):
+        query_params = {}
+        if country != None:
+            query_params["country"] = country
+        if locale != None:
+            query_params["locale"] = locale
+        query_params = self.create_query(query_params)
+        return self.get_response(-1, resource_type=f"browse/categories/{category}", query=query_params)
