@@ -11,7 +11,6 @@ load_dotenv()
 client_id = os.environ.get("client_id")
 client_secret = os.environ.get("client_secret")
 redirect_uri = os.environ.get("redirect_uri")
-token_url = os.environ.get("token_url")
 
 class SpotifyAPI(object):
     access_token = None
@@ -19,7 +18,7 @@ class SpotifyAPI(object):
     access_expired = True
     client_id = None
     client_secret = None
-    token_url = None
+    token_url = "https://accounts.spotify.com/api/token"
     base_url = "https://api.spotify.com"
     default_limit = 20
     min_limit = 0
@@ -32,7 +31,6 @@ class SpotifyAPI(object):
         super().__init__(*args, **kwargs)
         self.client_id = client_id
         self.client_secret = client_secret
-        self.token_url = token_url
 
     '''
     Authorization
@@ -261,7 +259,6 @@ class SpotifyAPI(object):
     GET /audiobooks
     Required Parameters:
         id(s) (str|list)
-
     '''
     def get_audiobook(self, _id:str, market:str=""):
         query_params = self.create_query({}, market=market)
@@ -304,3 +301,49 @@ class SpotifyAPI(object):
             query_params["locale"] = locale
         query_params = self.create_query(query_params)
         return self.get_response(-1, resource_type=f"browse/categories/{category}", query=query_params)
+    
+    '''
+    GET /chapters
+    Required Parameters:
+        id(s): str|list
+
+    NOTE: The documentation does not say the market code is required, but exluding it 
+        returns a 500 error. Because of this, the market code is set to 'US' by default.
+        This applies to the next two methods.
+    REASON: Chapters are only available for the US, UK, Ireland, New Zealand and Australia 
+    markets.
+
+    Reference: https://developer.spotify.com/documentation/web-api/reference/get-a-chapter
+    '''
+    def get_chapter(self, _id:str, market:str="US"):
+        query_params = self.create_query({}, market=market)
+        return self.get_response(_id, resource_type="chapters", query=query_params)
+    
+    def get_chapters(self, _ids:list, market:str="US"):
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="chapters", query=query_params)
+    
+    '''
+    GET /episodes
+    Required Parameters:
+        id(s): str|list
+    '''
+
+    # returns a 404 error, likely requires authorization code flow, will hold off for now
+    # NOTE: requires user-read-playback-position
+    def get_episode(self, _id:str, market:str=""):
+        query_params = self.create_query({}, market=market)
+        return self.get_response(_id, resource_type="episodes", query=query_params)
+    
+    '''
+    GET /recommendations/available-genre-seeds
+    '''
+    def get_genre_seeds(self):
+        return self.get_response(-1, resource_type="recommendations/available-genre-seeds")
+    
+    '''
+    GET /markets
+    '''
+    def get_available_markets(self):
+        return self.get_response(-1, resource_type="markets")
