@@ -4,6 +4,7 @@ import os
 import requests
 from dotenv import load_dotenv
 from urllib.parse import urlencode
+from urllib.parse import urlparse, parse_qs
 
 load_dotenv()
 
@@ -16,8 +17,10 @@ class SpotifyAPI(object):
     access_token = None
     access_token_expires = None
     access_expired = True
+    code_flow_access_token = None
     client_id = None
     client_secret = None
+    redirect_uri = None
     token_url = "https://accounts.spotify.com/api/token"
     base_url = "https://api.spotify.com"
     default_limit = 20
@@ -27,15 +30,16 @@ class SpotifyAPI(object):
     min_offset = 0
     max_offset = 1000
 
-    def __init__(self, client_id, client_secret, *args, **kwargs):
+    def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_id = client_id
         self.client_secret = client_secret
+        self.redirect_uri = redirect_uri
 
     '''
-    Authorization
+    Client Credentials
 
-    Reference: https://developer.spotify.com/documentation/web-api/concepts/access-token
+    Reference: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
     '''
     def get_client_credentials(self):
         '''
@@ -102,8 +106,58 @@ class SpotifyAPI(object):
         return access_token
     
     '''
+    Authentication Code Flow
+
+    Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
+    '''
+    # get-scope? maybe method that returns scope for each call? or just offer all?
+    # I can do this: have user provide scope, if the methods have the scope, it can continue
+    # if it does not, return None 
+    def get_code_flow_data(self, scope, state, show_dialog):
+        data = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "show_dialog": show_dialog
+        }
+
+        if scope != None:
+            if isinstance(scope, list):
+                scope = self.convert_list_to_str(" ", scope)
+            else:
+                data["scope"] = scope
+        if state != None:
+            data["state"] = state
+        
+        return data
+    
+    def code_flow_oauth(self, scope:str|list=None, state:str=None, show_dialog:bool=False):
+        access_token = self.code_flow_access_token
+        data = self.get_code_flow_data(scope, state, show_dialog)
+        data = urlencode(data)
+
+        if access_token == None:
+            response = requests.get("https://accounts.spotify.com/authorize" + data)
+        if response.status_code not in range(200, 299):
+            raise Exception(f"Authorization failed, could not redirect. Error: {response.status_code}")
+        url = response.url
+
+        print(f"Follow this url: {url}")
+        print("input the redirected url: ")
+        redirected_url = input()
+
+        parsed_query = self.parse_url_query(redirected_url)
+        if "code" not in parsed_query:
+            return False
+        self.code_flow_access_token = parsed_query["code"]
+        return True
+    
+    '''
     Helper functions
-    '''  
+    '''
+    def convert_list_to_str(self, separator, list_items):
+        return separator.join([f"{item}" for item in list_items])
+
     def convert_list_to_dict(self, key, list_items):
         item_string = ",".join([f"{item}" for item in list_items])
         return {key: item_string}
@@ -138,6 +192,13 @@ class SpotifyAPI(object):
         if dict == {}:
              return None
         return urlencode(dict)
+    
+    def parse_url_query(self, url:str):
+        parsed_url = urlparse(url)
+        if parsed_url.scheme != "https":
+            return {}
+        parsed_query = parse_qs(parsed_url.query)
+        return parsed_query
           
     def get_response(self, id, resource_type="albums", version="v1", query=None):
         endpoint = f"{self.base_url}/{version}/{resource_type}"
@@ -151,8 +212,8 @@ class SpotifyAPI(object):
         headers = self.get_access_headers()
         response = requests.get(endpoint, headers=headers)
 
-        if response.status_code not in range(200, 299):
-            return response.json()   
+        # if response.status_code not in range(200, 299):
+        #     return response.json()   
         return response.json()
 
     '''
