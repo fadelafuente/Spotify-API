@@ -232,16 +232,6 @@ class SpotifyClient(object):
     def get_album_tracks(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
         return self.get_response(f"{_id}/tracks", resource_type="albums", query=query_params)
-    
-    # 5/12/2023: Got {'status': 401, 'message': 'Invalid access token'} 
-    # Reason: Since this flow does not include authorization, only endpoints 
-    # that do not access user information can be accessed.
-    #
-    # will need to implement Authorization code flow
-    # Reference: https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
-    def get_my_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        return self.get_response(-1, resource_type="me/albums", query=query_params)
 
     '''
     GET /Artists
@@ -352,12 +342,6 @@ class SpotifyClient(object):
     Required Parameters:
         id(s): str|list
     '''
-
-    # returns a 404 error, likely requires authorization code flow, will hold off for now
-    # NOTE: requires user-read-playback-position
-    def get_episode(self, _id:str, market:str=""):
-        query_params = self.create_query({}, market=market)
-        return self.get_response(_id, resource_type="episodes", query=query_params)
     
     '''
     GET /recommendations/available-genre-seeds
@@ -381,6 +365,12 @@ class SpotifyOAuth(SpotifyClient):
     state = None
     scope = None
     refresh_token = None
+    default_limit = 20
+    min_limit = 0
+    max_limit = 50
+    default_offset = 0
+    min_offset = 0
+    max_offset = 1000
 
     def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
         super().__init__(client_id, client_secret, redirect_uri, *args, **kwargs)
@@ -451,3 +441,18 @@ class SpotifyOAuth(SpotifyClient):
         if isinstance(data, dict) and "refresh_token" in data:
             self.refresh_token = data["refresh_token"]
         return True
+    
+    # Required scope(s): user-library-read
+    def get_my_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/albums", query=query_params)
+
+    '''
+    GET /episodes
+    Required Parameters:
+        id(s): str|list
+    '''
+    def get_episode(self, _id:str, market:str=""):
+        query_params = self.create_query({}, market=market)
+        return self.get_response(_id, resource_type="episodes", query=query_params)
+
