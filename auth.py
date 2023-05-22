@@ -13,11 +13,10 @@ client_id = os.environ.get("client_id")
 client_secret = os.environ.get("client_secret")
 redirect_uri = os.environ.get("redirect_uri")
 
-class SpotifyAPI(object):
+class SpotifyClient(object):
     access_token = None
     access_token_expires = None
     access_expired = True
-    code_flow_access_token = None
     client_id = None
     client_secret = None
     redirect_uri = None
@@ -65,8 +64,7 @@ class SpotifyAPI(object):
             "grant_type": "client_credentials"
         }
 
-    def perform_auth(self):
-        token_data = self.get_token_data()
+    def request_access_token(self, token_data):
         token_url = self.token_url
         token_headers = self.get_token_headers()
 
@@ -83,6 +81,10 @@ class SpotifyAPI(object):
         expires = now + datetime.timedelta(seconds=expires_in)
         self.access_token_expires = expires
         self.access_expired = expires < now
+
+        # return data so oauth code flow can set refresh_token
+        if "refresh_token" in data:
+            return data
         return True
     
     def get_access_headers(self):
@@ -92,6 +94,9 @@ class SpotifyAPI(object):
         }
         return headers
     
+    def refresh_access_token(self):
+        self.access_token = None
+    
     def get_access_token(self):     
         access_token = self.access_token
         expires = self.access_token_expires
@@ -99,58 +104,15 @@ class SpotifyAPI(object):
 
         # if the access token was not given/expired,
         # get/refresh the access token
-        if access_token == None or expires < now:
-            self.perform_auth()
+        if access_token == None:
+            token_data = self.get_token_data()
+            self.request_access_token(token_data=token_data)
+            return self.get_access_token()
+        elif expires < now:
+            self.refresh_access_token()
             return self.get_access_token()
         
         return access_token
-    
-    '''
-    Authentication Code Flow
-
-    Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
-    '''
-    # get-scope? maybe method that returns scope for each call? or just offer all?
-    # I can do this: have user provide scope, if the methods have the scope, it can continue
-    # if it does not, return None 
-    def get_code_flow_data(self, scope, state, show_dialog):
-        data = {
-            "response_type": "code",
-            "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri,
-            "show_dialog": show_dialog
-        }
-
-        if scope != None:
-            if isinstance(scope, list):
-                scope = self.convert_list_to_str(" ", scope)
-            else:
-                data["scope"] = scope
-        if state != None:
-            data["state"] = state
-        
-        return data
-    
-    def code_flow_oauth(self, scope:str|list=None, state:str=None, show_dialog:bool=False):
-        access_token = self.code_flow_access_token
-        data = self.get_code_flow_data(scope, state, show_dialog)
-        data = urlencode(data)
-
-        if access_token == None:
-            response = requests.get("https://accounts.spotify.com/authorize" + data)
-        if response.status_code not in range(200, 299):
-            raise Exception(f"Authorization failed, could not redirect. Error: {response.status_code}")
-        url = response.url
-
-        print(f"Follow this url: {url}")
-        print("input the redirected url: ")
-        redirected_url = input()
-
-        parsed_query = self.parse_url_query(redirected_url)
-        if "code" not in parsed_query:
-            return False
-        self.code_flow_access_token = parsed_query["code"]
-        return True
     
     '''
     Helper functions
@@ -408,3 +370,84 @@ class SpotifyAPI(object):
     '''
     def get_available_markets(self):
         return self.get_response(-1, resource_type="markets")
+
+'''
+Authentication Code Flow
+
+Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
+'''   
+class SpotifyOAuth(SpotifyClient):
+    code = None
+    state = None
+    scope = None
+    refresh_token = None
+
+    def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
+        super().__init__(client_id, client_secret, redirect_uri, *args, **kwargs)
+
+    # get-scope? maybe method that returns scope for each call? or just offer all?
+    # I can do this: have user provide scope, if the methods have the scope, it can continue
+    # if it does not, return None 
+    def get_code_data(self, scope, state, show_dialog):
+        data = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "show_dialog": show_dialog
+        }
+
+        if scope != None:
+            if isinstance(scope, list):
+                scope = self.convert_list_to_str(" ", scope)
+            else:
+                data["scope"] = scope
+        if state != None:
+            data["state"] = state
+        
+        return data
+    
+    def request_user_auth(self, scope:str|list=None, state:str=None, show_dialog:bool=False):
+        access_token = self.access_token
+        data = self.get_code_data(scope, state, show_dialog)
+        data = urlencode(data)
+
+        if access_token == None:
+            response = requests.get("https://accounts.spotify.com/authorize?" + data)
+        if response.status_code not in range(200, 299):
+            raise Exception(f"Authorization failed, could not redirect.")
+        url = response.url
+
+        print(f"Follow this url: {url}")
+        print("input the redirected url: ")
+        redirected_url = input()
+
+        parsed_query = self.parse_url_query(redirected_url)
+        if "error" in parsed_query:
+            error = parsed_query["error"]
+            raise Exception(f"Authorization failed, {error}")
+
+        if "code" not in parsed_query:
+            return False
+        self.code = parsed_query["code"]
+        if "state" in parsed_query:
+            self.state = parsed_query["state"]
+        return True
+    
+    def get_token_data(self):
+        return {"grant_type": "authorization_code",
+                "code": self.code,
+                "redirect_uri": self.redirect_uri}
+    
+    def get_refresh_data(self):
+        return {"grant_type": "refresh_token",
+                "refresh_token": self.refresh_token}
+    
+    def refresh_access_token(self):
+        data = self.get_refresh_data()
+        self.request_access_token(token_data=data)
+
+    def request_access_token(self, token_data):
+        data = super().request_access_token(token_data)
+        if isinstance(data, dict) and "refresh_token" in data:
+            self.refresh_token = data["refresh_token"]
+        return True
