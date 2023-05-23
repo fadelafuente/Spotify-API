@@ -389,8 +389,7 @@ class SpotifyOAuth(SpotifyClient):
         if scope != None:
             if isinstance(scope, list):
                 scope = self.convert_list_to_str(" ", scope)
-            else:
-                data["scope"] = scope
+            data["scope"] = scope
         if state != None:
             data["state"] = state
         
@@ -461,8 +460,6 @@ class SpotifyOAuth(SpotifyClient):
     
     '''
     GET /me/{}
-    Required Parameter(s):
-        None
     '''
     
     def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
