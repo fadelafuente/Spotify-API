@@ -120,7 +120,9 @@ class SpotifyClient(object):
     def convert_list_to_str(self, separator, list_items):
         return separator.join([f"{item}" for item in list_items])
 
-    def convert_list_to_dict(self, key, list_items):
+    def convert_list_to_dict(self, key, list_items, length=50):
+        if len(list_items) > length:
+            raise Exception("Maximum number of ids exceeded")
         item_string = ",".join([f"{item}" for item in list_items])
         return {key: item_string}
     
@@ -162,16 +164,20 @@ class SpotifyClient(object):
         parsed_query = parse_qs(parsed_url.query)
         return parsed_query
           
-    def get_response(self, id, resource_type="albums", version="v1", query=None):
+    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET"):
         endpoint = f"{self.base_url}/{version}/{resource_type}"
         if id != -1:
             endpoint += f"/{id}"
         if query != None:
             endpoint += f"?{query}"
 
-        print(endpoint)
+        # print(endpoint)
 
         headers = self.get_access_headers()
+        if request_type == "PUT":
+            response = requests.put(endpoint, headers=headers)
+        elif request_type == "DELETE":
+            response = requests.delete(endpoint, headers=headers)
         response = requests.get(endpoint, headers=headers)
 
         # if response.status_code not in range(200, 299):
@@ -222,9 +228,7 @@ class SpotifyClient(object):
         return self.get_response(_id, resource_type="albums", query=query_params)
     
     def get_albums(self, _ids:list, market:str=""):
-        if len(_ids) > 20:
-            raise Exception("Maximum number of ids exceeded")
-        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = self.convert_list_to_dict("ids", _ids, length=20)
         query_params = self.create_query(query_params, market=market)
     
         return self.get_response(-1, resource_type="albums", query=query_params)
@@ -242,8 +246,6 @@ class SpotifyClient(object):
         return self.get_response(_id, resource_type="artists")
     
     def get_artists(self, _ids:list):
-        if len(_ids) > 50:
-            raise Exception("Maximum number of ids exceeded")
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
 
@@ -278,8 +280,6 @@ class SpotifyClient(object):
         return self.get_response(_id, resource_type="audiobooks", query=query_params)
     
     def get_audiobooks(self, _ids:list, market:str=""):
-        if len(_ids) > 50:
-            raise Exception("Maximum number of ids exceeded")
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
         return self.get_response(-1, resource_type="audiobooks", query=query_params)
@@ -441,18 +441,49 @@ class SpotifyOAuth(SpotifyClient):
         if isinstance(data, dict) and "refresh_token" in data:
             self.refresh_token = data["refresh_token"]
         return True
-    
-    # Required scope(s): user-library-read
-    def get_my_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        return self.get_response(-1, resource_type="me/albums", query=query_params)
 
     '''
     GET /episodes
     Required Parameters:
         id(s): str|list
     '''
+
+    # Required Scope: user-read-playback-position
     def get_episode(self, _id:str, market:str=""):
         query_params = self.create_query({}, market=market)
         return self.get_response(_id, resource_type="episodes", query=query_params)
 
+    # Required Scope: user-read-playback-position
+    def get_episodes(self, _ids:list, market:str=""):
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="episodes", query=query_params)
+    
+    '''
+    GET /me/{}
+    Required Parameter(s):
+        None
+    '''
+    
+    def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/albums", query=query_params)
+    
+    def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/episodes", query=query_params)
+    
+    def save_episodes(self, _ids:list):
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="PUT")
+    
+    def remove_saved_episodes(self, _ids:list):
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="DELETE")
+    
+    def check_saved_episodes(self, _ids:list):
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/episodes/contains", query=query_params)
