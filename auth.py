@@ -459,13 +459,15 @@ class SpotifyOAuth(SpotifyClient):
         return self.get_response(-1, resource_type="episodes", query=query_params)
     
     '''
-    GET /me/{}
-    '''
-    
+    GET /me/albums
+    '''   
     def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/albums", query=query_params)
     
+    '''
+    GET /me/episodes
+    '''   
     def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/episodes", query=query_params)
