@@ -363,7 +363,7 @@ Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-fl
 class SpotifyOAuth(SpotifyClient):
     code = None
     state = None
-    scope = None
+    scopes = None
     refresh_token = None
     default_limit = 20
     min_limit = 0
@@ -371,13 +371,34 @@ class SpotifyOAuth(SpotifyClient):
     default_offset = 0
     min_offset = 0
     max_offset = 1000
+    available_scopes = ["ugc-image-upload",
+                        "user-read-playback-state",
+                        "user-modify-playback-state",
+                        "user-read-currently-playing",
+                        "app-remote-control",
+                        "streaming",
+                        "playlist-read-private",
+                        "playlist-read-collaborative",
+                        "playlist-modify-private",
+                        "playlist-modify-public",
+                        "user-follow-modify",
+                        "user-follow-read",
+                        "user-read-playback-position",
+                        "user-top-read",
+                        "user-read-recently-played",
+                        "user-library-modify",
+                        "user-library-read",
+                        "user-read-email",
+                        "user-read-private",
+                        "user-soa-link",
+                        "user-soa-unlink",
+                        "user-manage-entitlements",
+                        "user-manage-partner",
+                        "user-create-partner"]
 
     def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
         super().__init__(client_id, client_secret, redirect_uri, *args, **kwargs)
 
-    # get-scope? maybe method that returns scope for each call? or just offer all?
-    # I can do this: have user provide scope, if the methods have the scope, it can continue
-    # if it does not, return None 
     def get_code_data(self, scope, state, show_dialog):
         data = {
             "response_type": "code",
@@ -387,17 +408,35 @@ class SpotifyOAuth(SpotifyClient):
         }
 
         if scope != None:
-            if isinstance(scope, list):
-                scope = self.convert_list_to_str(" ", scope)
+            scope = self.convert_list_to_str(" ", scope)
             data["scope"] = scope
         if state != None:
             data["state"] = state
         
         return data
     
-    def request_user_auth(self, scope:str|list=None, state:str=None, show_dialog:bool=False):
+    def validate_scopes(self, scopes):
+        if not isinstance(scopes, list):
+            raise Exception("Unsupported scopes type, please provide a list of scopes")
+        if not all(x in self.available_scopes for x in scopes):
+            raise Exception("One of the scopes provided is invalid, "
+                            "please refer to the Spotify API documentation: " 
+                            "https://developer.spotify.com/documentation/web-api/concepts/scopes")
+        self.scopes = scopes
+        return True
+    
+    def has_required_scopes(self, required_scopes):
+        scopes = self.scopes
+        if len(scopes) < len(required_scopes):
+            return False
+        if all(x in scopes for x in required_scopes):
+            return True
+        return False
+    
+    def request_user_auth(self, scopes:list=None, state:str=None, show_dialog:bool=False):
         access_token = self.access_token
-        data = self.get_code_data(scope, state, show_dialog)
+        if self.validate_scopes(scopes=scopes):
+            data = self.get_code_data(scopes, state, show_dialog)
         data = urlencode(data)
 
         if access_token == None:
@@ -440,6 +479,12 @@ class SpotifyOAuth(SpotifyClient):
         if isinstance(data, dict) and "refresh_token" in data:
             self.refresh_token = data["refresh_token"]
         return True
+    
+    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[]):
+        if not self.has_required_scopes(required_scopes=required_scopes):
+            return {}
+        return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type)
+        
 
     '''
     GET /episodes
@@ -447,42 +492,49 @@ class SpotifyOAuth(SpotifyClient):
         id(s): str|list
     '''
 
-    # Required Scope: user-read-playback-position
+    # Required Scopes: user-read-playback-position
     def get_episode(self, _id:str, market:str=""):
+        required_scopes = ["user-read-playback-position"]
         query_params = self.create_query({}, market=market)
-        return self.get_response(_id, resource_type="episodes", query=query_params)
+        return self.get_response(_id, resource_type="episodes", query=query_params, required_scopes=required_scopes)
 
-    # Required Scope: user-read-playback-position
+    # Required Scopes: user-read-playback-position
     def get_episodes(self, _ids:list, market:str=""):
+        required_scopes = ["user-read-playback-position"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
-        return self.get_response(-1, resource_type="episodes", query=query_params)
+        return self.get_response(-1, resource_type="episodes", query=query_params, required_scopes=required_scopes)
     
     '''
     GET /me/albums
     '''   
     def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        required_scopes = ["user-library-read"]
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        return self.get_response(-1, resource_type="me/albums", query=query_params)
+        return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
     
     '''
     GET /me/episodes
     '''   
     def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        required_scopes = ["user-library-read", "user-read-playback-position"]
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        return self.get_response(-1, resource_type="me/episodes", query=query_params)
+        return self.get_response(-1, resource_type="me/episodes", query=query_params, required_scopes=required_scopes)
     
     def save_episodes(self, _ids:list):
+        required_scopes = ["user-library-modify"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
-        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="PUT")
+        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
     def remove_saved_episodes(self, _ids:list):
+        required_scopes = ["user-library-modify"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
-        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="DELETE")
+        return self.get_response(-1, resource_type="me/episodes", query=query_params, request_type="DELETE", required_scopes=required_scopes)
     
     def check_saved_episodes(self, _ids:list):
+        required_scopes = ["user-library-read"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
-        return self.get_response(-1, resource_type="me/episodes/contains", query=query_params)
+        return self.get_response(-1, resource_type="me/episodes/contains", query=query_params, required_scopes=required_scopes)
