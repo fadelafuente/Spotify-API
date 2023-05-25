@@ -236,6 +236,12 @@ class SpotifyClient(object):
     def get_album_tracks(self, _id:str, market:str="", limit:int=default_limit, offset:int=default_offset):
         query_params = self.create_query({}, market=market, limit=limit, offset=offset)
         return self.get_response(f"{_id}/tracks", resource_type="albums", query=query_params)
+    
+    # uses country string instead of market string
+    def get_new_releases(self, country:str="", limit:int=default_limit, offset:int=default_offset):
+        query_params = {"country": country}
+        query_params = self.create_query(query_params, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="browse/new-releases", query=query_params)
 
     '''
     GET /Artists
@@ -484,7 +490,58 @@ class SpotifyOAuth(SpotifyClient):
         if not self.has_required_scopes(required_scopes=required_scopes):
             return {}
         return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type)
-        
+    
+    '''
+    GET /me/albums
+    '''   
+    def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+        required_scopes = ["user-library-read"]
+        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
+    
+    def save_albums(self, _ids:list):
+        required_scopes = ["user-library-modify"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/albums", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def remove_saved_albums(self, _ids:list):
+        required_scopes = ["user-library-modify"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/albums", query=query_params, request_type="DELETE", required_scopes=required_scopes)   
+
+    def check_saved_albums(self, _ids:list):
+        required_scopes = ["user-library-read"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/albums/contains", query=query_params, required_scopes=required_scopes)
+
+    '''
+    GET /me/audiobooks
+    '''
+    def get_saved_audiobooks(self, limit:int=default_limit, offset:int=default_offset):
+        required_scopes = ["user-library-read"]
+        query_params = self.create_query({}, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/audiobooks", query=query_params, required_scopes=required_scopes)
+    
+    def save_audiobooks(self, _ids:list):
+        required_scopes = ["user-library-modify"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/audiobooks", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def remove_saved_audiobooks(self, _ids:list):
+        required_scopes = ["user-library-modify"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/audiobooks", query=query_params, request_type="DELETE", required_scopes=required_scopes)   
+
+    def check_saved_audiobooks(self, _ids:list):
+        required_scopes = ["user-library-read"]
+        query_params = self.convert_list_to_dict("ids", _ids)
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/audiobooks/contains", query=query_params, required_scopes=required_scopes)
 
     '''
     GET /episodes
@@ -504,14 +561,6 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
         return self.get_response(-1, resource_type="episodes", query=query_params, required_scopes=required_scopes)
-    
-    '''
-    GET /me/albums
-    '''   
-    def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
-        required_scopes = ["user-library-read"]
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
-        return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
     
     '''
     GET /me/episodes
