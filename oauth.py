@@ -79,7 +79,7 @@ class SpotifyOAuth(SpotifyClient):
             return True
         if not isinstance(scopes, list):
             raise Exception("Unsupported scopes type, please provide a list of scopes")
-        if not all(x in self.available_scopes for x in scopes):
+        if not all(s in self.available_scopes for s in scopes):
             raise Exception("One of the scopes provided is invalid, "
                             "please refer to the Spotify API documentation: " 
                             "https://developer.spotify.com/documentation/web-api/concepts/scopes")
@@ -92,7 +92,7 @@ class SpotifyOAuth(SpotifyClient):
             return False
         if len(scopes) < len(required_scopes):
             return False
-        if all(x in scopes for x in required_scopes):
+        if all(s in scopes for s in required_scopes):
             return True
         return False
     
@@ -244,3 +244,18 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/episodes/contains", query=query_params, required_scopes=required_scopes)
+
+    '''
+    GET /me/player
+    '''
+    def get_playback(self, market:str="", additional_types:list=None):
+        required_scopes = ["user-read-playback-state"]
+        query_params = {}
+        if additional_types != None:
+            # Valid types are track and episode, check if additional_types is not equal or a subset
+            if all(a_type in ["track", "episode"] for a_type in additional_types):
+                query_params["additional_types"] = additional_types
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
+
+            
