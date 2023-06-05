@@ -11,7 +11,6 @@ load_dotenv()
 # For testing purposes, will remove later 
 client_id = os.environ.get("client_id")
 client_secret = os.environ.get("client_secret")
-redirect_uri = os.environ.get("redirect_uri")
 
 class SpotifyClient(object):
     access_token = None
@@ -19,7 +18,6 @@ class SpotifyClient(object):
     access_expired = True
     client_id = None
     client_secret = None
-    redirect_uri = None
     token_url = "https://accounts.spotify.com/api/token"
     base_url = "https://api.spotify.com"
     default_limit = 20
@@ -29,11 +27,10 @@ class SpotifyClient(object):
     min_offset = 0
     max_offset = 1000
 
-    def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
+    def __init__(self, client_id, client_secret, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_id = client_id
         self.client_secret = client_secret
-        self.redirect_uri = redirect_uri
 
     '''
     Client Credentials
