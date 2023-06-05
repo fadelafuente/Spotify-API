@@ -2,6 +2,7 @@ import base64
 import datetime
 import os
 import requests
+import json
 from dotenv import load_dotenv
 from urllib.parse import urlencode
 from urllib.parse import urlparse, parse_qs
@@ -20,6 +21,7 @@ Authentication Code Flow
 Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
 '''   
 class SpotifyOAuth(SpotifyClient):
+    redirect_uri = None
     code = None
     state = None
     scopes = None
@@ -55,8 +57,11 @@ class SpotifyOAuth(SpotifyClient):
                         "user-manage-partner",
                         "user-create-partner"]
 
-    def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
-        super().__init__(client_id, client_secret, redirect_uri, *args, **kwargs)
+    def __init__(self, client_id, client_secret, redirect_uri, scopes=None, *args, **kwargs):
+        super().__init__(client_id, client_secret, *args, **kwargs)
+        self.redirect_uri = redirect_uri
+        if scopes != None:
+            self.request_user_auth(scopes=scopes)
 
     def get_code_data(self, scope, state, show_dialog):
         data = {
@@ -143,10 +148,10 @@ class SpotifyOAuth(SpotifyClient):
             self.refresh_token = data["refresh_token"]
         return True
     
-    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[]):
+    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
             return {}
-        return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type)
+        return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type, data=data)
     
     '''
     GET /me/albums
@@ -253,9 +258,39 @@ class SpotifyOAuth(SpotifyClient):
         query_params = {}
         if additional_types != None:
             # Valid types are track and episode, check if additional_types is not equal or a subset
+            # NOTE: The spotify API documentation shows that this might be deprecated in the future
+            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
             if all(a_type in ["track", "episode"] for a_type in additional_types):
                 query_params["additional_types"] = additional_types
         query_params = self.create_query(query_params, market=market)
         return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
+    
+    def transfer_playback(self, device_id, play=True):
+        required_scopes = ["user-modify-playback-state"]
+        # only accepts 1 device id, any more results in a 400 error
+        if isinstance(device_id, list) and len(device_id) != 1:
+             return {}
+        if not isinstance(device_id, list):
+            device_id = [device_id]
+        data = {"device_ids": device_id, "play": play}
+        data = json.dumps(data)
+        return self.get_response(-1, resource_type="me/player", request_type = "PUT", required_scopes=required_scopes, data=data)
 
-            
+    def get_available_devices(self):
+        required_scopes = ["user-read-playback-state"]
+        return self.get_response(-1, resource_type="me/player/devices", required_scopes=required_scopes)
+
+scopes = ["user-modify-playback-state", "user-read-playback-state"]
+auth = SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scopes=scopes)
+
+s = auth.get_available_devices()
+
+print(s)
+
+s = auth.transfer_playback("cca2bdbf992ad87f7474727fdf7934b389b6071a")
+
+print(s)
+
+# s = auth.get_available_devices()
+
+# print(s)
