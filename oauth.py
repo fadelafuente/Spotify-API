@@ -279,18 +279,4 @@ class SpotifyOAuth(SpotifyClient):
     def get_available_devices(self):
         required_scopes = ["user-read-playback-state"]
         return self.get_response(-1, resource_type="me/player/devices", required_scopes=required_scopes)
-
-scopes = ["user-modify-playback-state", "user-read-playback-state"]
-auth = SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scopes=scopes)
-
-s = auth.get_available_devices()
-
-print(s)
-
-s = auth.transfer_playback("cca2bdbf992ad87f7474727fdf7934b389b6071a")
-
-print(s)
-
-# s = auth.get_available_devices()
-
-# print(s)
+    
