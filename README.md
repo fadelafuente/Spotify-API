@@ -24,5 +24,5 @@ episodes = auth.get_saved_episodes()
 
 You can also add this line if scopes was not passed previously, or if you want to change the authorization scopes.
 ```
-auth.request_user_auth(scopes=scopes)
+auth.request_user_auth(scopes=["user-library-read"])
 ```
