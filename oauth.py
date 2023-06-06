@@ -1,5 +1,6 @@
 import base64
 import datetime
+import time
 import os
 import requests
 import json
@@ -148,10 +149,39 @@ class SpotifyOAuth(SpotifyClient):
             self.refresh_token = data["refresh_token"]
         return True
     
+    def make_request(self, endpoint, headers, data, request_type):
+        if request_type == "PUT":
+            response = requests.put(endpoint, headers=headers, data=data)
+            return
+        elif request_type == "DELETE":
+            response = requests.delete(endpoint, headers=headers, data=data)
+            return
+        elif request_type == "POST":
+            response = requests.post(endpoint, headers=headers, data=data)
+            return
+        else:
+            response = requests.get(endpoint, headers=headers, data=data)
+        return response
+    
     def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
             return {}
-        return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type, data=data)
+        endpoint = self.build_endpoint(id, resource_type, version, query)
+
+        headers = self.get_access_headers()
+        if request_type == "PUT":
+            response = requests.put(endpoint, headers=headers, data=data)
+            return
+        elif request_type == "DELETE":
+            response = requests.delete(endpoint, headers=headers, data=data)
+            return
+        elif request_type == "POST":
+            response = requests.post(endpoint, headers=headers, data=data)
+            return
+        else:
+            response = requests.get(endpoint, headers=headers, data=data)
+ 
+        return response.json()
     
     '''
     GET /me/albums
@@ -274,9 +304,66 @@ class SpotifyOAuth(SpotifyClient):
             device_id = [device_id]
         data = {"device_ids": device_id, "play": play}
         data = json.dumps(data)
-        return self.get_response(-1, resource_type="me/player", request_type = "PUT", required_scopes=required_scopes, data=data)
+        return self.get_response(-1, resource_type="me/player", request_type="PUT", required_scopes=required_scopes, data=data)
 
     def get_available_devices(self):
         required_scopes = ["user-read-playback-state"]
         return self.get_response(-1, resource_type="me/player/devices", required_scopes=required_scopes)
     
+    def get_currently_playing_track(self, market:str="", additional_types:list=None):
+        required_scopes = ["user-read-currently-playing"]
+        query_params = {}
+        if additional_types != None:
+            # Valid types are track and episode, check if additional_types is not equal or a subset
+            # NOTE: The spotify API documentation shows that this might be deprecated in the future
+            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
+            if all(a_type in ["track", "episode"] for a_type in additional_types):
+                query_params["additional_types"] = additional_types
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="me/player/currently-playing", query=query_params, required_scopes=required_scopes)
+    
+    def start_playback(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = None
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/play", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def pause_playback(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = None
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/pause", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def skip_to_next(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = None
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/next", query=query_params, request_type="POST", required_scopes=required_scopes)
+
+scopes = ["user-modify-playback-state", "user-read-playback-state"]
+auth = SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scopes=scopes)
+
+#s = auth.get_available_devices()
+
+#print(s)
+
+#s = auth.transfer_playback("cca2bdbf992ad87f7474727fdf7934b389b6071a")
+
+#s = auth.get_artist_albums("0TnOYISbd1XYRBk9myaseg")
+
+#print(s)
+
+auth.start_playback()
+
+# s = auth.get_available_devices()
+
+time.sleep(10)
+
+auth.pause_playback()
+
+time.sleep(10)
+
+auth.skip_to_next()

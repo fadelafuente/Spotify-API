@@ -160,23 +160,19 @@ class SpotifyClient(object):
             return {}
         parsed_query = parse_qs(parsed_url.query)
         return parsed_query
-          
-    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", data=None):
+    
+    def build_endpoint(self, id, resource_type, version, query):
         endpoint = f"{self.base_url}/{version}/{resource_type}"
         if id != -1:
             endpoint += f"/{id}"
         if query != None:
             endpoint += f"?{query}"
-
-        # print(endpoint)
-
+        return endpoint
+          
+    def get_response(self, id, resource_type="albums", version="v1", query=None):
+        endpoint = self.build_endpoint(id, resource_type, version, query)
         headers = self.get_access_headers()
-        if request_type == "PUT":
-            response = requests.put(endpoint, headers=headers, data=data)
-        elif request_type == "DELETE":
-            response = requests.delete(endpoint, headers=headers, data=data)
-        else:
-            response = requests.get(endpoint, headers=headers, data=data)
+        response = requests.get(endpoint, headers=headers)
 
         # if response.status_code not in range(200, 299):
         #     return response.json()   
