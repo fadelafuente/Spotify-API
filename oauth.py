@@ -149,20 +149,6 @@ class SpotifyOAuth(SpotifyClient):
             self.refresh_token = data["refresh_token"]
         return True
     
-    def make_request(self, endpoint, headers, data, request_type):
-        if request_type == "PUT":
-            response = requests.put(endpoint, headers=headers, data=data)
-            return
-        elif request_type == "DELETE":
-            response = requests.delete(endpoint, headers=headers, data=data)
-            return
-        elif request_type == "POST":
-            response = requests.post(endpoint, headers=headers, data=data)
-            return
-        else:
-            response = requests.get(endpoint, headers=headers, data=data)
-        return response
-    
     def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
             return {}
@@ -342,28 +328,26 @@ class SpotifyOAuth(SpotifyClient):
         if device_id != None:
             query_params = {"device_id": device_id}
         return self.get_response(-1, resource_type="me/player/next", query=query_params, request_type="POST", required_scopes=required_scopes)
+    
+    def skip_to_previous(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = None
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/previous", query=query_params, request_type="POST", required_scopes=required_scopes)
 
-scopes = ["user-modify-playback-state", "user-read-playback-state"]
-auth = SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scopes=scopes)
+    def seek_position(self, position_ms:int, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = {"position_ms": position_ms}
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/seek", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
-#s = auth.get_available_devices()
-
-#print(s)
-
-#s = auth.transfer_playback("cca2bdbf992ad87f7474727fdf7934b389b6071a")
-
-#s = auth.get_artist_albums("0TnOYISbd1XYRBk9myaseg")
-
-#print(s)
-
-auth.start_playback()
-
-# s = auth.get_available_devices()
-
-time.sleep(10)
-
-auth.pause_playback()
-
-time.sleep(10)
-
-auth.skip_to_next()
+    def set_repeat_mode(self, state:str, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if state not in ["track", "context", "off"]:
+            return
+        query_params = {"state": state}
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        return self.get_response(-1, resource_type="me/player/repeat", query=query_params, request_type="PUT", required_scopes=required_scopes)
