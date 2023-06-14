@@ -290,7 +290,7 @@ class SpotifyClient(object):
     Reference: https://developer.spotify.com/documentation/web-api/reference/get-categories
     '''
     def get_browse_categories(self, country:str|None=None, locale:str|None=None, limit:int=default_limit, offset:int=default_offset):
-        query_params = self.create_query(limit=limit, offset=offset, country=country, locale=locale)
+        query_params = self.create_query(country=country, locale=locale, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="browse/categories", query=query_params)
     
     def get_browse_category(self, category:str, country:str|None=None, locale:str|None=None):
