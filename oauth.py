@@ -157,18 +157,18 @@ class SpotifyOAuth(SpotifyClient):
         headers = self.get_access_headers()
         if request_type == "PUT":
             response = requests.put(endpoint, headers=headers, data=data)
-            return
+            return True
         elif request_type == "DELETE":
             response = requests.delete(endpoint, headers=headers, data=data)
-            return
+            return True
         elif request_type == "POST":
             response = requests.post(endpoint, headers=headers, data=data)
-            return
+            return True
         else:
             response = requests.get(endpoint, headers=headers, data=data)
  
         return response.json()
-    
+
     '''
     GET /me/albums
     '''   
@@ -285,7 +285,7 @@ class SpotifyOAuth(SpotifyClient):
         required_scopes = ["user-modify-playback-state"]
         # only accepts 1 device id, any more results in a 400 error
         if isinstance(device_id, list) and len(device_id) != 1:
-             return {}
+             return False
         if not isinstance(device_id, list):
             device_id = [device_id]
         data = {"device_ids": device_id, "play": play}
@@ -313,6 +313,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = None
         if device_id != None:
             query_params = {"device_id": device_id}
+        query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/play", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
     def pause_playback(self, device_id=None):
@@ -320,6 +321,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = None
         if device_id != None:
             query_params = {"device_id": device_id}
+            query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/pause", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
     def skip_to_next(self, device_id=None):
@@ -327,6 +329,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = None
         if device_id != None:
             query_params = {"device_id": device_id}
+            query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/next", query=query_params, request_type="POST", required_scopes=required_scopes)
     
     def skip_to_previous(self, device_id=None):
@@ -334,6 +337,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = None
         if device_id != None:
             query_params = {"device_id": device_id}
+            query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/previous", query=query_params, request_type="POST", required_scopes=required_scopes)
 
     def seek_position(self, position_ms:int, device_id=None):
@@ -341,13 +345,26 @@ class SpotifyOAuth(SpotifyClient):
         query_params = {"position_ms": position_ms}
         if device_id != None:
             query_params = {"device_id": device_id}
+        query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/seek", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
     def set_repeat_mode(self, state:str, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         if state not in ["track", "context", "off"]:
-            return
+            return False
         query_params = {"state": state}
         if device_id != None:
             query_params = {"device_id": device_id}
+        query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/player/repeat", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def set_volume(self, volume_percent:int, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if volume_percent not in range(0, 101):
+            return False
+        query_params = {"volume_percent": volume_percent}
+        if device_id != None:
+            query_params = {"device_id": device_id}
+        query_params = urlencode(query_params)
+        return self.get_response(-1, resource_type="me/player/volume", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
