@@ -172,7 +172,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     GET /me/albums
     '''   
-    def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+    def get_saved_albums(self, market:str|None=None, limit:int|None=None, offset:int|None=None):
         required_scopes = ["user-library-read"]
         query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
@@ -228,13 +228,13 @@ class SpotifyOAuth(SpotifyClient):
     '''
 
     # Required Scopes: user-read-playback-position
-    def get_episode(self, _id:str, market:str=""):
+    def get_episode(self, _id:str, market:str|None=None):
         required_scopes = ["user-read-playback-position"]
         query_params = self.create_query(market=market)
         return self.get_response(_id, resource_type="episodes", query=query_params, required_scopes=required_scopes)
 
     # Required Scopes: user-read-playback-position
-    def get_episodes(self, _ids:list, market:str=""):
+    def get_episodes(self, _ids:list, market:str|None=None):
         required_scopes = ["user-read-playback-position"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
@@ -243,7 +243,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     GET /me/episodes
     '''   
-    def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+    def get_saved_episodes(self, market:str|None=None, limit:int|None=None, offset:int|None=None):
         required_scopes = ["user-library-read", "user-read-playback-position"]
         query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/episodes", query=query_params, required_scopes=required_scopes)
@@ -269,7 +269,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     GET /me/player
     '''
-    def get_playback(self, market:str="", additional_types:list=None):
+    def get_playback(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-playback-state"]
         query_params = {}
         if additional_types != None:
@@ -296,7 +296,7 @@ class SpotifyOAuth(SpotifyClient):
         required_scopes = ["user-read-playback-state"]
         return self.get_response(-1, resource_type="me/player/devices", required_scopes=required_scopes)
     
-    def get_currently_playing_track(self, market:str="", additional_types:list=None):
+    def get_currently_playing_track(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-currently-playing"]
         query_params = {}
         if additional_types != None:

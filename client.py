@@ -123,32 +123,29 @@ class SpotifyClient(object):
         item_string = self.convert_list_to_str(separator=",", list_items=list_items, max_length=max_length)
         return {key: item_string}
     
-    def set_limit(self, limit:int, dict):
+    def set_limit(self, limit:int):
         if limit != self.default_limit:
             if limit < self.min_limit:
                 limit = self.min_limit
             if limit > self.max_limit:
                 limit = self.max_limit
-            dict["limit"] = limit
-        return dict
+        return limit
     
-    def set_offset(self, offset:int, dict):
+    def set_offset(self, offset:int):
         if offset != self.default_offset:
             if offset < self.min_offset:
                 offset = self.min_offset
             if offset > self.max_offset:
                 offset = self.max_offset
-            dict["offset"] = offset
-        return dict
-    
-    def set_market(self, market:str, dict):
-        if market != "":
-            dict["market"] = market
-        return dict
+        return offset
     
     def create_query(self, params={}, **kwargs):
         for key, value in kwargs.items():
             if value != None:
+                if key == "offset":
+                    value = self.set_offset(value)
+                elif key == "limit":
+                    value = self.set_limit(value)
                 params[key] = value
         if params == {}:
              return None
@@ -222,7 +219,7 @@ class SpotifyClient(object):
         query_params = self.create_query(market=market)
         return self.get_response(_id, resource_type="albums", query=query_params)
     
-    def get_albums(self, _ids:list, market:str=""):
+    def get_albums(self, _ids:list, market:str|None=None):
         query_params = self.convert_list_to_dict("ids", _ids, length=20)
         query_params = self.create_query(query_params, market=market)   
         return self.get_response(-1, resource_type="albums", query=query_params)
@@ -339,10 +336,3 @@ class SpotifyClient(object):
     '''
     def get_available_markets(self):
         return self.get_response(-1, resource_type="markets")
-
-
-auth = SpotifyClient(client_id=client_id, client_secret=client_secret)
-
-#s = auth.get_browse_categories(country="SE", limit=4)
-s = auth.search(query="remaster%20track:Doxy%20artist:Miles%20Davis", search_type="album", market="ES")
-print(s)
