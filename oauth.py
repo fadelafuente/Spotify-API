@@ -174,7 +174,7 @@ class SpotifyOAuth(SpotifyClient):
     '''   
     def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
         required_scopes = ["user-library-read"]
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
     
     def save_albums(self, _ids:list):
@@ -200,7 +200,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     def get_saved_audiobooks(self, limit:int=default_limit, offset:int=default_offset):
         required_scopes = ["user-library-read"]
-        query_params = self.create_query({}, limit=limit, offset=offset)
+        query_params = self.create_query(limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/audiobooks", query=query_params, required_scopes=required_scopes)
     
     def save_audiobooks(self, _ids:list):
@@ -230,7 +230,7 @@ class SpotifyOAuth(SpotifyClient):
     # Required Scopes: user-read-playback-position
     def get_episode(self, _id:str, market:str=""):
         required_scopes = ["user-read-playback-position"]
-        query_params = self.create_query({}, market=market)
+        query_params = self.create_query(market=market)
         return self.get_response(_id, resource_type="episodes", query=query_params, required_scopes=required_scopes)
 
     # Required Scopes: user-read-playback-position
@@ -245,7 +245,7 @@ class SpotifyOAuth(SpotifyClient):
     '''   
     def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
         required_scopes = ["user-library-read", "user-read-playback-position"]
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/episodes", query=query_params, required_scopes=required_scopes)
     
     def save_episodes(self, _ids:list):
@@ -310,61 +310,39 @@ class SpotifyOAuth(SpotifyClient):
     
     def start_playback(self, device_id=None):
         required_scopes = ["user-modify-playback-state"]
-        query_params = None
-        if device_id != None:
-            query_params = {"device_id": device_id}
-        query_params = urlencode(query_params)
+        query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/play", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
     def pause_playback(self, device_id=None):
         required_scopes = ["user-modify-playback-state"]
-        query_params = None
-        if device_id != None:
-            query_params = {"device_id": device_id}
-            query_params = urlencode(query_params)
+        query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/pause", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
     def skip_to_next(self, device_id=None):
         required_scopes = ["user-modify-playback-state"]
-        query_params = None
-        if device_id != None:
-            query_params = {"device_id": device_id}
-            query_params = urlencode(query_params)
+        query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/next", query=query_params, request_type="POST", required_scopes=required_scopes)
     
     def skip_to_previous(self, device_id=None):
         required_scopes = ["user-modify-playback-state"]
-        query_params = None
-        if device_id != None:
-            query_params = {"device_id": device_id}
-            query_params = urlencode(query_params)
+        query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/previous", query=query_params, request_type="POST", required_scopes=required_scopes)
 
     def seek_position(self, position_ms:int, device_id=None):
         required_scopes = ["user-modify-playback-state"]
-        query_params = {"position_ms": position_ms}
-        if device_id != None:
-            query_params = {"device_id": device_id}
-        query_params = urlencode(query_params)
+        query_params = self.create_query(position_ms=position_ms, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/seek", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
     def set_repeat_mode(self, state:str, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         if state not in ["track", "context", "off"]:
             return False
-        query_params = {"state": state}
-        if device_id != None:
-            query_params = {"device_id": device_id}
-        query_params = urlencode(query_params)
+        query_params = self.create_query(state=state, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/repeat", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
     def set_volume(self, volume_percent:int, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         if volume_percent not in range(0, 101):
             return False
-        query_params = {"volume_percent": volume_percent}
-        if device_id != None:
-            query_params = {"device_id": device_id}
-        query_params = urlencode(query_params)
+        query_params = self.create_query(volume_percent=volume_percent, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/volume", query=query_params, request_type="PUT", required_scopes=required_scopes)
-    
