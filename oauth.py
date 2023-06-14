@@ -1,7 +1,9 @@
 import base64
 import datetime
+import time
 import os
 import requests
+import json
 from dotenv import load_dotenv
 from urllib.parse import urlencode
 from urllib.parse import urlparse, parse_qs
@@ -20,6 +22,7 @@ Authentication Code Flow
 Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
 '''   
 class SpotifyOAuth(SpotifyClient):
+    redirect_uri = None
     code = None
     state = None
     scopes = None
@@ -55,8 +58,11 @@ class SpotifyOAuth(SpotifyClient):
                         "user-manage-partner",
                         "user-create-partner"]
 
-    def __init__(self, client_id, client_secret, redirect_uri, *args, **kwargs):
-        super().__init__(client_id, client_secret, redirect_uri, *args, **kwargs)
+    def __init__(self, client_id, client_secret, redirect_uri, scopes=None, *args, **kwargs):
+        super().__init__(client_id, client_secret, *args, **kwargs)
+        self.redirect_uri = redirect_uri
+        if scopes != None:
+            self.request_user_auth(scopes=scopes)
 
     def get_code_data(self, scope, state, show_dialog):
         data = {
@@ -79,7 +85,7 @@ class SpotifyOAuth(SpotifyClient):
             return True
         if not isinstance(scopes, list):
             raise Exception("Unsupported scopes type, please provide a list of scopes")
-        if not all(x in self.available_scopes for x in scopes):
+        if not all(s in self.available_scopes for s in scopes):
             raise Exception("One of the scopes provided is invalid, "
                             "please refer to the Spotify API documentation: " 
                             "https://developer.spotify.com/documentation/web-api/concepts/scopes")
@@ -92,7 +98,7 @@ class SpotifyOAuth(SpotifyClient):
             return False
         if len(scopes) < len(required_scopes):
             return False
-        if all(x in scopes for x in required_scopes):
+        if all(s in scopes for s in required_scopes):
             return True
         return False
     
@@ -143,17 +149,32 @@ class SpotifyOAuth(SpotifyClient):
             self.refresh_token = data["refresh_token"]
         return True
     
-    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[]):
+    def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
             return {}
-        return super().get_response(id=id, resource_type=resource_type, version=version, query=query, request_type=request_type)
-    
+        endpoint = self.build_endpoint(id, resource_type, version, query)
+
+        headers = self.get_access_headers()
+        if request_type == "PUT":
+            response = requests.put(endpoint, headers=headers, data=data)
+            return True
+        elif request_type == "DELETE":
+            response = requests.delete(endpoint, headers=headers, data=data)
+            return True
+        elif request_type == "POST":
+            response = requests.post(endpoint, headers=headers, data=data)
+            return True
+        else:
+            response = requests.get(endpoint, headers=headers, data=data)
+ 
+        return response.json()
+
     '''
     GET /me/albums
     '''   
-    def get_saved_albums(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+    def get_saved_albums(self, market:str|None=None, limit:int|None=None, offset:int|None=None):
         required_scopes = ["user-library-read"]
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/albums", query=query_params, required_scopes=required_scopes)
     
     def save_albums(self, _ids:list):
@@ -179,7 +200,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     def get_saved_audiobooks(self, limit:int=default_limit, offset:int=default_offset):
         required_scopes = ["user-library-read"]
-        query_params = self.create_query({}, limit=limit, offset=offset)
+        query_params = self.create_query(limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/audiobooks", query=query_params, required_scopes=required_scopes)
     
     def save_audiobooks(self, _ids:list):
@@ -207,13 +228,13 @@ class SpotifyOAuth(SpotifyClient):
     '''
 
     # Required Scopes: user-read-playback-position
-    def get_episode(self, _id:str, market:str=""):
+    def get_episode(self, _id:str, market:str|None=None):
         required_scopes = ["user-read-playback-position"]
-        query_params = self.create_query({}, market=market)
+        query_params = self.create_query(market=market)
         return self.get_response(_id, resource_type="episodes", query=query_params, required_scopes=required_scopes)
 
     # Required Scopes: user-read-playback-position
-    def get_episodes(self, _ids:list, market:str=""):
+    def get_episodes(self, _ids:list, market:str|None=None):
         required_scopes = ["user-read-playback-position"]
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = self.create_query(query_params, market=market)
@@ -222,9 +243,9 @@ class SpotifyOAuth(SpotifyClient):
     '''
     GET /me/episodes
     '''   
-    def get_saved_episodes(self, market:str="", limit:int=default_limit, offset:int=default_offset):
+    def get_saved_episodes(self, market:str|None=None, limit:int|None=None, offset:int|None=None):
         required_scopes = ["user-library-read", "user-read-playback-position"]
-        query_params = self.create_query({}, market=market, limit=limit, offset=offset)
+        query_params = self.create_query(market=market, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="me/episodes", query=query_params, required_scopes=required_scopes)
     
     def save_episodes(self, _ids:list):
@@ -244,3 +265,108 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.convert_list_to_dict("ids", _ids)
         query_params = urlencode(query_params)
         return self.get_response(-1, resource_type="me/episodes/contains", query=query_params, required_scopes=required_scopes)
+
+    '''
+    GET /me/player
+    '''
+    def get_playback(self, market:str|None=None, additional_types:list=None):
+        required_scopes = ["user-read-playback-state"]
+        query_params = {}
+        if additional_types != None:
+            # Valid types are track and episode, check if additional_types is not equal or a subset
+            # NOTE: The spotify API documentation shows that this might be deprecated in the future
+            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
+            if all(a_type in ["track", "episode"] for a_type in additional_types):
+                query_params["additional_types"] = additional_types
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
+    
+    def transfer_playback(self, device_id, play=True):
+        required_scopes = ["user-modify-playback-state"]
+        # only accepts 1 device id, any more results in a 400 error
+        if isinstance(device_id, list) and len(device_id) != 1:
+             return False
+        if not isinstance(device_id, list):
+            device_id = [device_id]
+        data = {"device_ids": device_id, "play": play}
+        data = json.dumps(data)
+        return self.get_response(-1, resource_type="me/player", request_type="PUT", required_scopes=required_scopes, data=data)
+
+    def get_available_devices(self):
+        required_scopes = ["user-read-playback-state"]
+        return self.get_response(-1, resource_type="me/player/devices", required_scopes=required_scopes)
+    
+    def get_currently_playing_track(self, market:str|None=None, additional_types:list=None):
+        required_scopes = ["user-read-currently-playing"]
+        query_params = {}
+        if additional_types != None:
+            # Valid types are track and episode, check if additional_types is not equal or a subset
+            # NOTE: The spotify API documentation shows that this might be deprecated in the future
+            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
+            if all(a_type in ["track", "episode"] for a_type in additional_types):
+                query_params["additional_types"] = additional_types
+        query_params = self.create_query(query_params, market=market)
+        return self.get_response(-1, resource_type="me/player/currently-playing", query=query_params, required_scopes=required_scopes)
+    
+    def start_playback(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/play", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def stop_playback(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/pause", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def skip_to_next(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/next", query=query_params, request_type="POST", required_scopes=required_scopes)
+    
+    def skip_to_previous(self, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/previous", query=query_params, request_type="POST", required_scopes=required_scopes)
+
+    def seek_position(self, position_ms:int, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(position_ms=position_ms, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/seek", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def set_repeat_mode(self, state:str, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if state not in ["track", "context", "off"]:
+            return False
+        query_params = self.create_query(state=state, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/repeat", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def set_volume(self, volume_percent:int, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if volume_percent not in range(0, 101):
+            return False
+        query_params = self.create_query(volume_percent=volume_percent, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/volume", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def toggle_shuffle(self, state:bool, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(state=state, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/shuffle", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def get_recently_played_tracks(self, limit:str|None=None, after:int|None=None, before:int|None=None):
+        required_scopes = ["user-read-recently-played"]
+        # Only one should be specified, not both
+        if after != None and before != None:
+            return False
+        query_params = self.create_query(limit=limit, after=after, before=before)
+        return self.get_response(-1, resource_type="me/player/recently-played", query=query_params, required_scopes=required_scopes)
+    
+    def get_queue(self):
+        required_scopes = ["user-read-playback-state"]
+        return self.get_response(-1, resource_type="me/player/queue", required_scopes=required_scopes)
+    
+    def add_item_to_queue(self, uri:str, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if not("spotify:track:" in uri or "spotify:episode:" in uri):
+            return False
+        query_params = self.create_query(uri=uri, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/queue", query=query_params, request_type="POST", required_scopes=required_scopes)
