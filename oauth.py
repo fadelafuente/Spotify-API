@@ -313,7 +313,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/play", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
-    def pause_playback(self, device_id=None):
+    def stop_playback(self, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         query_params = self.create_query(device_id=device_id)
         return self.get_response(-1, resource_type="me/player/pause", query=query_params, request_type="PUT", required_scopes=required_scopes)
@@ -346,3 +346,27 @@ class SpotifyOAuth(SpotifyClient):
             return False
         query_params = self.create_query(volume_percent=volume_percent, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/volume", query=query_params, request_type="PUT", required_scopes=required_scopes)
+
+    def toggle_shuffle(self, state:bool, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        query_params = self.create_query(state=state, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/shuffle", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def get_recently_played_tracks(self, limit:str|None=None, after:int|None=None, before:int|None=None):
+        required_scopes = ["user-read-recently-played"]
+        # Only one should be specified, not both
+        if after != None and before != None:
+            return False
+        query_params = self.create_query(limit=limit, after=after, before=before)
+        return self.get_response(-1, resource_type="me/player/recently-played", query=query_params, required_scopes=required_scopes)
+    
+    def get_queue(self):
+        required_scopes = ["user-read-playback-state"]
+        return self.get_response(-1, resource_type="me/player/queue", required_scopes=required_scopes)
+    
+    def add_item_to_queue(self, uri:str, device_id=None):
+        required_scopes = ["user-modify-playback-state"]
+        if not("spotify:track:" in uri or "spotify:episode:" in uri):
+            return False
+        query_params = self.create_query(uri=uri, device_id=device_id)
+        return self.get_response(-1, resource_type="me/player/queue", query=query_params, request_type="POST", required_scopes=required_scopes)
