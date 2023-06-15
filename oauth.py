@@ -271,13 +271,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     def get_playback(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-playback-state"]
-        query_params = {}
-        if additional_types != None:
-            # Valid types are track and episode, check if additional_types is not equal or a subset
-            # NOTE: The spotify API documentation shows that this might be deprecated in the future
-            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
-            if all(a_type in ["track", "episode"] for a_type in additional_types):
-                query_params["additional_types"] = additional_types
+        query_params = self.check_additional_types(additional_types=additional_types)
         query_params = self.create_query(query_params, market=market)
         return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
     
@@ -298,13 +292,7 @@ class SpotifyOAuth(SpotifyClient):
     
     def get_currently_playing_track(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-currently-playing"]
-        query_params = {}
-        if additional_types != None:
-            # Valid types are track and episode, check if additional_types is not equal or a subset
-            # NOTE: The spotify API documentation shows that this might be deprecated in the future
-            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
-            if all(a_type in ["track", "episode"] for a_type in additional_types):
-                query_params["additional_types"] = additional_types
+        query_params = self.check_additional_types(additional_types=additional_types)
         query_params = self.create_query(query_params, market=market)
         return self.get_response(-1, resource_type="me/player/currently-playing", query=query_params, required_scopes=required_scopes)
     

@@ -176,6 +176,16 @@ class SpotifyClient(object):
         # if response.status_code not in range(200, 299):
         #     return response.json()   
         return response.json()
+    
+    def check_additional_types(self, additional_types):
+        query_params = {}
+        if additional_types != None:
+            # Valid types are track and episode, check if additional_types is not equal or a subset
+            # NOTE: The spotify API documentation shows that this might be deprecated in the future
+            # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
+            if all(a_type in ["track", "episode"] for a_type in additional_types):
+                query_params["additional_types"] = additional_types
+        return query_params
 
     '''
     GET /search
@@ -336,3 +346,12 @@ class SpotifyClient(object):
     '''
     def get_available_markets(self):
         return self.get_response(-1, resource_type="markets")
+
+    '''
+    GET /playlists
+    '''
+    def get_playlist(self, _id:str, market:str|None=None, fields:str|None=None, additional_types:str|None=None):
+        query_params = self.check_additional_types(additional_types=additional_types)
+        query_params = self.create_query(query_params, market=market, fields=fields)
+        return self.get_response(_id, resource_type="playlists", query=query_params)
+
