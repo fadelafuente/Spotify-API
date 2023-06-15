@@ -350,19 +350,19 @@ class SpotifyClient(object):
     '''
     GET /playlists
     '''
-    def get_playlist(self, _id:str, market:str|None=None, fields:str|None=None, additional_types:str|None=None):
+    def get_playlist(self, _playlist_id:str, market:str|None=None, fields:str|None=None, additional_types:str|None=None):
         query_params = self.check_additional_types(additional_types=additional_types)
         query_params = self.create_query(query_params, market=market, fields=fields)
-        return self.get_response(_id, resource_type="playlists", query=query_params)
+        return self.get_response(_playlist_id, resource_type="playlists", query=query_params)
     
     def get_featured_playlists(self, country:str|None=None, locale:str|None=None, timestamp:str|None=None, limit:str|None=None, offset:str|None=None):
         query_params = self.create_query(country=country, locale=locale, timestamp=timestamp, limit=limit, offset=offset)
         return self.get_response(-1, resource_type="browse/featured-playlists", query=query_params)
     
-    def get_categorys_playlists(self, _id:str, country:str|None=None, limit:str|None=None, offset:str|None=None):
+    def get_categorys_playlists(self, _category_id:str, country:str|None=None, limit:str|None=None, offset:str|None=None):
         query_params = self.create_query(country=country, limit=limit, offset=offset)
-        return self.get_response(f"{_id}/playlists", resource_type="browse/categories", query=query_params)
+        return self.get_response(f"{_category_id}/playlists", resource_type="browse/categories", query=query_params)
     
-    def get_playlist_cover(self, _id:str):
-        return self.get_response(f"{_id}/images", resource_type="playlists")
+    def get_playlist_cover(self, _category_id:str):
+        return self.get_response(f"{_category_id}/images", resource_type="playlists")
     
