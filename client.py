@@ -184,7 +184,7 @@ class SpotifyClient(object):
             # NOTE: The spotify API documentation shows that this might be deprecated in the future
             # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
             if all(a_type in ["track", "episode"] for a_type in additional_types):
-                query_params["additional_types"] = additional_types
+                query_params["additional_types"] = self.convert_list_to_str(separator=",", list_items=additional_types)
         return query_params
 
     '''
@@ -350,7 +350,7 @@ class SpotifyClient(object):
     '''
     GET /playlists
     '''
-    def get_playlist(self, _playlist_id:str, market:str|None=None, fields:str|None=None, additional_types:str|None=None):
+    def get_playlist(self, _playlist_id:str, market:str|None=None, fields:str|None=None, additional_types:list|None=None):
         query_params = self.check_additional_types(additional_types=additional_types)
         query_params = self.create_query(query_params, market=market, fields=fields)
         return self.get_response(_playlist_id, resource_type="playlists", query=query_params)
@@ -363,6 +363,6 @@ class SpotifyClient(object):
         query_params = self.create_query(country=country, limit=limit, offset=offset)
         return self.get_response(f"{_category_id}/playlists", resource_type="browse/categories", query=query_params)
     
-    def get_playlist_cover(self, _category_id:str):
-        return self.get_response(f"{_category_id}/images", resource_type="playlists")
+    def get_playlist_cover(self, _playlist_id:str):
+        return self.get_response(f"{_playlist_id}/images", resource_type="playlists")
     
