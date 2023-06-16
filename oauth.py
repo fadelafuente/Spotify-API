@@ -168,6 +168,20 @@ class SpotifyOAuth(SpotifyClient):
             response = requests.get(endpoint, headers=headers, data=data)
  
         return response.json()
+    
+    def check_uris(self, uris):
+        if not all("spotify:track:" in uri or "spotify:episode:" in uri for uri in uris):
+            return False
+        return True
+    
+    def create_json_body(self, **kwargs):
+        data = {}
+        for key, value in kwargs.items():
+            if value != None:
+                data[key] = value
+        if data == {}:
+             return None
+        return json.dumps(data)
 
     '''
     GET /me/albums
@@ -274,15 +288,14 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.create_query(market=market, additional_types=additional_types)
         return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
     
-    def transfer_playback(self, device_id, play=True):
+    def transfer_playback(self, device_id:list|str, play:bool=True):
         required_scopes = ["user-modify-playback-state"]
         # only accepts 1 device id, any more results in a 400 error
         if isinstance(device_id, list) and len(device_id) != 1:
              return False
         if not isinstance(device_id, list):
             device_id = [device_id]
-        data = {"device_ids": device_id, "play": play}
-        data = json.dumps(data)
+        data = self.create_json_body(device_ids=device_id, play=play)
         return self.get_response(-1, resource_type="me/player", request_type="PUT", required_scopes=required_scopes, data=data)
 
     def get_available_devices(self):
@@ -360,20 +373,25 @@ class SpotifyOAuth(SpotifyClient):
     '''
     /playlists
     '''
-    def change_playlist_details(self, _playlist_id:str, name:str|None=None, public:bool=True, collaborative:bool=False, description:str|None=None):
+    def change_playlist_details(self, _playlist_id:str, name:str|None=None, public:bool|None=None, collaborative:bool|None=None, description:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-        data = {"public": public, "collaborative": collaborative}
-        if name:
-            data["name"] = name
-        if description:
-            data["description"] = description
-        data = json.dumps(data)
+
+        # JSON body
+        data = self.create_json_body(name=name, public=public, collaborative=collaborative, description=description)
+
         return self.get_response(_playlist_id, resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
     
     def get_platlist_items(self, _playlist_id:str, market:str|None=None, fields:str|None=None, limit:str|None=None, offset:str|None=None, additional_types:list|None=None):
         required_scopes = ["playlist-read-private"]
         query_params = self.create_query(market=market, fields=fields, limit=limit, offset=offset, additional_types=additional_types)
         return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", query=query_params, required_scopes=required_scopes)  
+    
+    def update_playlist_items(self, _playlist_id:str, uris:list|None=None, range_start:int|None=None, range_length:int|None=None, snapshot_id:str|None=None):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        if not self.check_uris(uris):
+            return False
+        data = self.create_json_body(uris=uris, range_start=range_start, range_length=range_length, snapshot_id=snapshot_id)
+        return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
     
     '''
     GET /me
