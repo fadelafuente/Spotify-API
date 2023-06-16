@@ -141,6 +141,8 @@ class SpotifyClient(object):
     
     def create_query(self, params={}, **kwargs):
         for key, value in kwargs.items():
+            if key == "additional_types":
+                value = self.check_additional_types(additional_types=value)
             if value != None:
                 if key == "offset":
                     value = self.set_offset(value)
@@ -178,14 +180,13 @@ class SpotifyClient(object):
         return response.json()
     
     def check_additional_types(self, additional_types):
-        query_params = {}
         if additional_types != None:
             # Valid types are track and episode, check if additional_types is not equal or a subset
             # NOTE: The spotify API documentation shows that this might be deprecated in the future
             # Reference: https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback
             if all(a_type in ["track", "episode"] for a_type in additional_types):
-                query_params["additional_types"] = self.convert_list_to_str(separator=",", list_items=additional_types)
-        return query_params
+                return self.convert_list_to_str(separator=",", list_items=additional_types)
+        return None
 
     '''
     GET /search
@@ -351,8 +352,7 @@ class SpotifyClient(object):
     GET /playlists
     '''
     def get_playlist(self, _playlist_id:str, market:str|None=None, fields:str|None=None, additional_types:list|None=None):
-        query_params = self.check_additional_types(additional_types=additional_types)
-        query_params = self.create_query(query_params, market=market, fields=fields)
+        query_params = self.create_query(market=market, fields=fields, additional_types=additional_types)
         return self.get_response(_playlist_id, resource_type="playlists", query=query_params)
     
     def get_featured_playlists(self, country:str|None=None, locale:str|None=None, timestamp:str|None=None, limit:str|None=None, offset:str|None=None):

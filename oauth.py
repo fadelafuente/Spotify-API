@@ -271,8 +271,7 @@ class SpotifyOAuth(SpotifyClient):
     '''
     def get_playback(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-playback-state"]
-        query_params = self.check_additional_types(additional_types=additional_types)
-        query_params = self.create_query(query_params, market=market)
+        query_params = self.create_query(market=market, additional_types=additional_types)
         return self.get_response(-1, resource_type="me/player", query=query_params, required_scopes=required_scopes)
     
     def transfer_playback(self, device_id, play=True):
@@ -292,8 +291,7 @@ class SpotifyOAuth(SpotifyClient):
     
     def get_currently_playing_track(self, market:str|None=None, additional_types:list=None):
         required_scopes = ["user-read-currently-playing"]
-        query_params = self.check_additional_types(additional_types=additional_types)
-        query_params = self.create_query(query_params, market=market)
+        query_params = self.create_query(market=market, additional_types=additional_types)
         return self.get_response(-1, resource_type="me/player/currently-playing", query=query_params, required_scopes=required_scopes)
     
     def start_playback(self, device_id=None):
@@ -358,3 +356,28 @@ class SpotifyOAuth(SpotifyClient):
             return False
         query_params = self.create_query(uri=uri, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/queue", query=query_params, request_type="POST", required_scopes=required_scopes)
+
+    '''
+    /playlists
+    '''
+    def change_playlist_details(self, _playlist_id:str, name:str|None=None, public:bool=True, collaborative:bool=False, description:str|None=None):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        data = {"public": public, "collaborative": collaborative}
+        if name:
+            data["name"] = name
+        if description:
+            data["description"] = description
+        data = json.dumps(data)
+        return self.get_response(_playlist_id, resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
+    
+    def get_platlist_items(self, _playlist_id:str, market:str|None=None, fields:str|None=None, limit:str|None=None, offset:str|None=None, additional_types:list|None=None):
+        required_scopes = ["playlist-read-private"]
+        query_params = self.create_query(market=market, fields=fields, limit=limit, offset=offset, additional_types=additional_types)
+        return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", query=query_params, required_scopes=required_scopes)  
+    
+    '''
+    GET /me
+    '''
+    def get_current_users_profile(self):
+        required_scopes = ["user-read-private", "user-read-email"]
+        return self.get_response(-1, resource_type="me", required_scopes=required_scopes)
