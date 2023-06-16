@@ -182,6 +182,31 @@ class SpotifyOAuth(SpotifyClient):
         if data == {}:
              return None
         return json.dumps(data)
+    
+    def create_list_of_objects(self, uris):
+        # create an array of objects/uris
+        # example: 
+        # { 
+        #   "tracks": [
+        #       { "uri": "spotify:track:4iV5W9uYEdYUVa79Axb7Rh" },
+        #       { "uri": "spotify:track:1301WleyT98MSxVHPZCA6M" }
+        #   ] 
+        # }
+        #
+        # Reference: https://developer.spotify.com/documentation/web-api/reference/remove-tracks-playlist
+        tracks = []
+        episodes = []
+        uris_dict = {}
+        for uri in uris:
+            if "spotify:track:" in uri:
+                tracks.append({"uri": uri})
+            else:
+                episodes.append({"uri": uri})
+        if tracks != []:
+            uris_dict["tracks"] = tracks
+        if episodes != []:
+            uris_dict["episodes"] = episodes
+        return uris_dict
 
     '''
     GET /me/albums
@@ -375,10 +400,9 @@ class SpotifyOAuth(SpotifyClient):
     '''
     def change_playlist_details(self, _playlist_id:str, name:str|None=None, public:bool|None=None, collaborative:bool|None=None, description:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-
-        # JSON body
+        if public:
+            collaborative = False
         data = self.create_json_body(name=name, public=public, collaborative=collaborative, description=description)
-
         return self.get_response(_playlist_id, resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
     
     def get_platlist_items(self, _playlist_id:str, market:str|None=None, fields:str|None=None, limit:str|None=None, offset:str|None=None, additional_types:list|None=None):
@@ -388,11 +412,44 @@ class SpotifyOAuth(SpotifyClient):
     
     def update_playlist_items(self, _playlist_id:str, uris:list|None=None, range_start:int|None=None, range_length:int|None=None, snapshot_id:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-        if not self.check_uris(uris):
+        if not self.check_uris(uris) or len(uris) > 100:
             return False
         data = self.create_json_body(uris=uris, range_start=range_start, range_length=range_length, snapshot_id=snapshot_id)
         return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
     
+    def add_items_to_playlist(self, _playlist_id:str, uris:list|None=None, position:int|None=None):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        if not self.check_uris(uris) or len(uris) > 100:
+            return False
+        data = self.create_json_body(uris=uris, position=position)
+        return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="POST", required_scopes=required_scopes, data=data)
+    
+    def remove_items_to_playlist(self, _playlist_id:str, uris:list, snapshot_id:str|None=None):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        if not self.check_uris(uris) or len(uris) > 100:
+            return False
+        
+        uris = self.create_list_of_objects(uris=uris)
+        data = self.create_json_body(uris=uris, snapshot_id=snapshot_id)
+        return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="DELETE", required_scopes=required_scopes, data=data)
+    
+    def get_current_users_playlists(self, limit:int|None=None, offset:int|None=None):
+        required_scopes = ["playlist-read-private"]
+        query_params = self.create_query(limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/playlists", query=query_params, required_scopes=required_scopes)
+
+    def get_users_playlists(self, _user_id:str, limit:int|None=None, offset:int|None=None):
+        required_scopes = ["playlist-read-private"]
+        query_params = self.create_query(limit=limit, offset=offset)
+        return self.get_response(f"{_user_id}/playlists", resource_type="users", query=query_params, required_scopes=required_scopes)
+    
+    def change_playlist_details(self, _user_id:str, name:str|None, public:bool|None=True, collaborative:bool|None=False, description:str|None=None):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        if public:
+            collaborative = False
+        data = self.create_json_body(name=name, public=public, collaborative=collaborative, description=description)
+        return self.get_response(f"{_user_id}/playlists", resource_type="users", request_type="POST", required_scopes=required_scopes, data=data)
+
     '''
     GET /me
     '''
