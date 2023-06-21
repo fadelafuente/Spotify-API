@@ -25,7 +25,7 @@ class SpotifyClient(object):
     max_limit = 50
     default_offset = 0
     min_offset = 0
-    max_offset = 1000
+    max_offset = 100000
 
     def __init__(self, client_id, client_secret, *args, **kwargs):
         super().__init__(*args, **kwargs)
