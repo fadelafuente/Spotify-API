@@ -124,7 +124,7 @@ class SpotifyOAuth(SpotifyClient):
             raise Exception(f"Authorization failed, {error}")
 
         if "code" not in parsed_query:
-            return False
+            raise Exception("Authorization failed, the authorization code is missing")
         self.code = parsed_query["code"]
         if "state" in parsed_query:
             self.state = parsed_query["state"]
@@ -151,7 +151,7 @@ class SpotifyOAuth(SpotifyClient):
     
     def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
-            return {}
+            raise Exception("One or more scopes missing.")
         endpoint = self.build_endpoint(id, resource_type, version, query)
 
         headers = self.get_access_headers()
@@ -170,9 +170,12 @@ class SpotifyOAuth(SpotifyClient):
         return response.json()
     
     def check_uris(self, uris):
+        if len(uris) > 100:
+            raise Exception("Maximum number of URIs exceeded. Please limit to 100 URIs per request.")
         if not all("spotify:track:" in uri or "spotify:episode:" in uri for uri in uris):
-            return False
-        return True
+            raise Exception("One or more URI is invalid, only submit a track or episode URI. "
+                            "Examples: spotify:track:1301WleyT98MSxVHPZCA6M, spotify:episode:512ojhOuo1ktJprKbVcKyQ")
+        return
     
     def create_json_body(self, **kwargs):
         data = {}
@@ -317,7 +320,7 @@ class SpotifyOAuth(SpotifyClient):
         required_scopes = ["user-modify-playback-state"]
         # only accepts 1 device id, any more results in a 400 error
         if isinstance(device_id, list) and len(device_id) != 1:
-             return False
+             raise Exception("More than one device id was submitted. Please submit only 1 device id.")
         if not isinstance(device_id, list):
             device_id = [device_id]
         data = self.create_json_body(device_ids=device_id, play=play)
@@ -360,12 +363,14 @@ class SpotifyOAuth(SpotifyClient):
     def set_repeat_mode(self, state:str, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         if state not in ["track", "context", "off"]:
-            return False
+            raise Exception("Invalid state. Refer to the Spotify API Documentation for valid states: "
+                            "https://developer.spotify.com/documentation/web-api/reference/set-repeat-mode-on-users-playback")
         query_params = self.create_query(state=state, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/repeat", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
     def set_volume(self, volume_percent:int, device_id=None):
         required_scopes = ["user-modify-playback-state"]
+        # simply do nothing if volume percent is outside of range
         if volume_percent not in range(0, 101):
             return False
         query_params = self.create_query(volume_percent=volume_percent, device_id=device_id)
@@ -380,7 +385,7 @@ class SpotifyOAuth(SpotifyClient):
         required_scopes = ["user-read-recently-played"]
         # Only one should be specified, not both
         if after != None and before != None:
-            return False
+            raise Exception("If after is specified, before must not be specified, and vice versa.")
         query_params = self.create_query(limit=limit, after=after, before=before)
         return self.get_response(-1, resource_type="me/player/recently-played", query=query_params, required_scopes=required_scopes)
     
@@ -391,7 +396,7 @@ class SpotifyOAuth(SpotifyClient):
     def add_item_to_queue(self, uri:str, device_id=None):
         required_scopes = ["user-modify-playback-state"]
         if not("spotify:track:" in uri or "spotify:episode:" in uri):
-            return False
+            raise Exception("Invalid URI. Please submit either a track or episode URI.")
         query_params = self.create_query(uri=uri, device_id=device_id)
         return self.get_response(-1, resource_type="me/player/queue", query=query_params, request_type="POST", required_scopes=required_scopes)
 
@@ -412,23 +417,19 @@ class SpotifyOAuth(SpotifyClient):
     
     def update_playlist_items(self, _playlist_id:str, uris:list|None=None, range_start:int|None=None, range_length:int|None=None, snapshot_id:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-        if not self.check_uris(uris) or len(uris) > 100:
-            return False
+        self.check_uris(uris)
         data = self.create_json_body(uris=uris, range_start=range_start, range_length=range_length, snapshot_id=snapshot_id)
         return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
     
     def add_items_to_playlist(self, _playlist_id:str, uris:list|None=None, position:int|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-        if not self.check_uris(uris) or len(uris) > 100:
-            return False
+        self.check_uris(uris)
         data = self.create_json_body(uris=uris, position=position)
         return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="POST", required_scopes=required_scopes, data=data)
     
     def remove_items_to_playlist(self, _playlist_id:str, uris:list, snapshot_id:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
-        if not self.check_uris(uris) or len(uris) > 100:
-            return False
-        
+        self.check_uris(uris)
         uris = self.create_list_of_objects(uris=uris)
         data = self.create_json_body(uris=uris, snapshot_id=snapshot_id)
         return self.get_response(f"{_playlist_id}/tracks", resource_type="playlists", request_type="DELETE", required_scopes=required_scopes, data=data)
