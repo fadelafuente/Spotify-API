@@ -444,12 +444,49 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.create_query(limit=limit, offset=offset)
         return self.get_response(f"{_user_id}/playlists", resource_type="users", query=query_params, required_scopes=required_scopes)
     
-    def change_playlist_details(self, _user_id:str, name:str|None, public:bool|None=True, collaborative:bool|None=False, description:str|None=None):
+    def create_playlist(self, _user_id:str, name:str, public:bool|None=True, collaborative:bool|None=False, description:str|None=None):
         required_scopes = ["playlist-modify-public", "playlist-modify-private"]
         if public:
             collaborative = False
         data = self.create_json_body(name=name, public=public, collaborative=collaborative, description=description)
         return self.get_response(f"{_user_id}/playlists", resource_type="users", request_type="POST", required_scopes=required_scopes, data=data)
+
+    '''
+    /me/shows
+    '''
+    def get_show(self, _show_id:str, market:str|None=None):
+        required_scopes = ["user-read-playback-position"]
+        query_params = self.create_query(market=market)
+        return self.get_response(_show_id, resource_type="shows", query=query_params, required_scopes=required_scopes)
+    
+    def get_shows(self, _show_ids:list, market:str|None=None):
+        required_scopes = ["user-read-playback-position"]
+        ids = self.convert_list_to_str(",", _show_ids)
+        query_params = self.create_query(ids=ids, market=market)
+        return self.get_response(-1, resource_type="shows", query=query_params, required_scopes=required_scopes)
+
+    def get_saved_shows(self, limit:str|None=None, offset:str|None=None):
+        required_scopes = ["user-library-read"]
+        query_params = self.create_query(limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/shows", query=query_params, required_scopes=required_scopes)
+    
+    def save_shows(self, _show_ids:list):
+        required_scopes = ["user-library-modify"]
+        ids = self.convert_list_to_str(",", _show_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="me/shows", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def delete_shows(self, _show_ids:list, market:str|None=None):
+        required_scopes = ["user-library-modify"]
+        ids = self.convert_list_to_str(",", _show_ids)
+        query_params = self.create_query(ids=ids, market=market)
+        return self.get_response(-1, resource_type="me/shows", query=query_params, request_type="DELETE", required_scopes=required_scopes)
+    
+    def check_saved_shows(self, _show_ids:list):
+        required_scopes = ["user-read-playback-position"]
+        ids = self.convert_list_to_str(",", _show_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="me/shows/contains", query=query_params, required_scopes=required_scopes)
 
     '''
     GET /me
