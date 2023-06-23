@@ -167,7 +167,33 @@ class SpotifyClient(object):
         if query != None:
             endpoint += f"?{query}"
         return endpoint
-          
+    
+    def check_recommendations_kwargs(self, **kwargs):
+        available_kwargs = ["acousticness",
+            "danceability",
+            "duration_ms",
+            "energy",
+            "instrumentalness",
+            "key",
+            "liveness",
+            "loudness",
+            "mode",
+            "popularity",
+            "speechiness",
+            "tempo",
+            "time_signature",
+            "valence"]
+        
+        params = {}
+        for key, value in kwargs.items():
+            if "_" not in key:
+                continue
+            prefix, arg = key.split("_")
+            if prefix in ["min", "max", "target"] and arg in available_kwargs:
+                params[key] = value
+        return params
+        
+         
     def get_response(self, id, resource_type="albums", version="v1", query=None):
         endpoint = self.build_endpoint(id, resource_type, version, query)
         headers = self.get_access_headers()
@@ -366,3 +392,68 @@ class SpotifyClient(object):
     def get_playlist_cover(self, _playlist_id:str):
         return self.get_response(f"{_playlist_id}/images", resource_type="playlists")
     
+    '''
+    GET /tracks
+    '''
+    def get_track(self, _track_id:str, market:str|None=None):
+        query_params = self.create_query(market=market)
+        return self.get_response(_track_id, resource_type="tracks", query=query_params)
+    
+    def get_tracks(self, _track_ids:list, market:str|None=None):
+        ids = self.convert_list_to_str(",", _track_ids)
+        query_params = self.create_query(ids=ids, market=market)
+        return self.get_response(-1, resource_type="tracks", query=query_params)
+    
+    def get_tracks_audio_features(self, _track_ids:list|str):
+        '''
+            Parameters:
+                id(s): string|list
+                    If using more than one track, submit as a list. 
+                    If only one track, submit as a string
+        '''
+        if isinstance(_track_ids, str) and not ("," in _track_ids or "%2C" in _track_ids):
+            return self.get_response(_track_ids, resource_type="audio-features")
+        elif isinstance(_track_ids, str):
+            raise Exception("Pass as a list when using more than one track id.")
+        ids = self.convert_list_to_str(",", _track_ids, 100)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="audio-features", query=query_params)
+    
+    def get_tracks_audio_analysis(self, _track_id:str):
+        return self.get_response(_track_id, resource_type="audio-analysis")
+    
+    def get_recommendations(self, seed_artists:list|None=None, seed_genres:list|None=None, seed_tracks:list|None=None, market:str|None=None, limit:int|None=None, **kwargs):
+        '''
+            NOTE:
+                Any combination of seed_artist, seed_genres, and seed_tracks are required.
+                
+                Refer to the Spotify API documentation for what key word arguments can be 
+                passed and what each one does.
+                Reference: https://developer.spotify.com/documentation/web-api/reference/get-recommendations
+        '''
+        if seed_artists == None and seed_genres == None and seed_tracks == None:
+            raise Exception("Please pass in any combination of seed_artists, seed_genres, and seed_tracks.")
+        
+        # check if seed combination is within the max limit
+        total_length = 0
+        if seed_artists:
+            total_length += len(seed_artists)
+            seed_artists = self.convert_list_to_str(",", seed_artists)
+        if seed_genres:
+            total_length += len(seed_genres)
+        if seed_tracks:
+            total_length += len(seed_tracks)
+            seed_tracks = self.convert_list_to_str(",", seed_tracks)
+        if total_length > 5:
+            raise Exception("Up to 5 seed values may be provided in any combination of seed_artists, seed_tracks and seed_genres.")
+        
+        # check if the genres passed are available
+        available_genres = self.get_genre_seeds()
+        available_genres = available_genres["genres"]
+        if not all(genre in available_genres for genre in seed_genres):
+            raise Exception("One or more genres are not available, check available genre seeds with the get_genre_seeds() method.")
+        
+        seed_genres = self.convert_list_to_str(",", seed_genres)
+        params = self.check_recommendations_kwargs(**kwargs)
+        query_params = self.create_query(seed_artists=seed_artists, seed_genres=seed_genres, seed_tracks=seed_tracks, **params)
+        return self.get_response(-1, resource_type="recommendations", query=query_params)

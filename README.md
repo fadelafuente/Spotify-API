@@ -1,5 +1,5 @@
 # Spotify-API
-This library was created for learning purposes, and makes using the Spotify API easier to use in Python
+This library was created for learning purposes, and makes using the Spotify API easier to use in Python.
 
 ## Quick Start
 ### Client Credentials

@@ -476,7 +476,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.create_query(ids=ids)
         return self.get_response(-1, resource_type="me/shows", query=query_params, request_type="PUT", required_scopes=required_scopes)
     
-    def delete_shows(self, _show_ids:list, market:str|None=None):
+    def remove_saved_shows(self, _show_ids:list, market:str|None=None):
         required_scopes = ["user-library-modify"]
         ids = self.convert_list_to_str(",", _show_ids)
         query_params = self.create_query(ids=ids, market=market)
@@ -487,7 +487,33 @@ class SpotifyOAuth(SpotifyClient):
         ids = self.convert_list_to_str(",", _show_ids)
         query_params = self.create_query(ids=ids)
         return self.get_response(-1, resource_type="me/shows/contains", query=query_params, required_scopes=required_scopes)
+    
+    '''
+    /tracks
+    '''
+    def get_saved_tracks(self, market:str|None=None, limit:int|None=None, offset:int|None=None):
+        required_scopes = ["user-library-read"]
+        query_params = self.create_query(market=market, limit=limit, offset=offset)
+        return self.get_response(-1, resource_type="me/tracks", query=query_params, required_scopes=required_scopes)
+    
+    def save_tracks(self, _track_ids:list):
+        required_scopes = ["user-library-modify"]
+        ids = self.convert_list_to_str(",", _track_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="me/tracks", query=query_params, request_type="PUT", required_scopes=required_scopes)
 
+    def remove_saved_tracks(self, _track_ids:list):
+        required_scopes = ["user-library-modify"]
+        ids = self.convert_list_to_str(",", _track_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="me/tracks", query=query_params, request_type="DELETE", required_scopes=required_scopes)
+    
+    def check_saved_tracks(self, _show_ids:list):
+        required_scopes = ["user-library-read"]
+        ids = self.convert_list_to_str(",", _show_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(-1, resource_type="me/tracks/contains", query=query_params, required_scopes=required_scopes)
+    
     '''
     GET /me
     '''
