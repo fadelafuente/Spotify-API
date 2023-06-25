@@ -457,3 +457,14 @@ class SpotifyClient(object):
         params = self.check_recommendations_kwargs(**kwargs)
         query_params = self.create_query(seed_artists=seed_artists, seed_genres=seed_genres, seed_tracks=seed_tracks, **params)
         return self.get_response(-1, resource_type="recommendations", query=query_params)
+    
+    '''
+    GET /users
+    '''
+    def get_users_profile(self, _user_id:str):
+        return self.get_response(_user_id, resource_type="users")
+    
+    def do_users_follow_playlist(self, _playlist_id:str, _user_ids:list):
+        ids = self.convert_list_to_str(",", _user_ids)
+        query_params = self.create_query(ids=ids)
+        return self.get_response(f"{_playlist_id}/followers/contains", resource_type="playlists", query=query_params)
