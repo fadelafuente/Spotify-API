@@ -520,3 +520,55 @@ class SpotifyOAuth(SpotifyClient):
     def get_current_users_profile(self):
         required_scopes = ["user-read-private", "user-read-email"]
         return self.get_response(-1, resource_type="me", required_scopes=required_scopes)
+
+    def get_top_items(self, type:str, time_range:str|None=None, limit:int|None=None, offset:int|None=None):
+        required_scopes = ["user-top-read"]
+        if type not in ["artists", "tracks"]:
+            raise Exception("Invalid type. Valid values are 'artists' or 'tracks'")
+        if time_range not in ["long_term", "medium_term", "short_term"]:
+            time_range = None
+        query_params = self.create_query(time_range=time_range, limit=limit, offset=offset)
+        return self.get_response(type, resource_type="me/top", query=query_params, required_scopes=required_scopes)
+
+    def follow_playlist(self, _playlist_id:str, public:bool=True):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        data = self.create_json_body(public=public)
+        return self.get_response(f"{_playlist_id}/followers", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=data)
+    
+    def unfollow_playlist(self, _playlist_id:str):
+        required_scopes = ["playlist-modify-public", "playlist-modify-private"]
+        return self.get_response(f"{_playlist_id}/followers", resource_type="playlists", request_type="DELETE", required_scopes=required_scopes)
+
+    '''
+    NOTE 6/25/2023: Currently only artist is supported for type, however type is left as a 
+         parameter if this were to change in the future.
+    '''
+    def get_followed_artists(self, type:str|None="artist", after:str|None=None, limit:int|None=None):
+        required_scopes = ["user-follow-read"]
+        type = "artist"
+        query_params = self.create_query(type=type, after=after, limit=limit)
+        return self.get_response(-1, resource_type="me/following", query=query_params, required_scopes=required_scopes)
+    
+    def follow_artists_or_users(self, type:str, _ids:list):
+        required_scopes = ["user-follow-modify"]
+        if type not in ["artist", "user"]:
+            raise Exception("Invalid type. Valid values are 'artist' or 'user'")
+        ids = self.convert_list_to_str(",", _ids)
+        query_params = self.create_query(type=type, ids=ids)
+        return self.get_response(-1, resource_type="me/following", query=query_params, request_type="PUT", required_scopes=required_scopes)
+    
+    def unfollow_artists_or_users(self, type:str, _ids:list):
+        required_scopes = ["user-follow-modify"]
+        if type not in ["artist", "user"]:
+            raise Exception("Invalid type. Valid values are 'artist' or 'user'")
+        ids = self.convert_list_to_str(",", _ids)
+        query_params = self.create_query(type=type, ids=ids)
+        return self.get_response(-1, resource_type="me/following", query=query_params, request_type="DELETE", required_scopes=required_scopes)
+    
+    def check_artists_or_users(self, type:str, _ids:list):
+        required_scopes = ["user-follow-read"]
+        if type not in ["artist", "user"]:
+            raise Exception("Invalid type. Valid values are 'artist' or 'user'")
+        ids = self.convert_list_to_str(",", _ids)
+        query_params = self.create_query(type=type, ids=ids)
+        return self.get_response(-1, resource_type="me/following/contains", query=query_params, required_scopes=required_scopes)
