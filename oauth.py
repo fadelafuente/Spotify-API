@@ -1,12 +1,12 @@
 import base64
-import datetime
-import time
 import os
 import requests
 import json
+import traceback
+import io
+from PIL import Image
 from dotenv import load_dotenv
 from urllib.parse import urlencode
-from urllib.parse import urlparse, parse_qs
 from client import SpotifyClient
 
 load_dotenv()
@@ -450,6 +450,20 @@ class SpotifyOAuth(SpotifyClient):
             collaborative = False
         data = self.create_json_body(name=name, public=public, collaborative=collaborative, description=description)
         return self.get_response(f"{_user_id}/playlists", resource_type="users", request_type="POST", required_scopes=required_scopes, data=data)
+
+    def add_cover_image(self, _playlist_id:str, image_data:str):
+        required_scopes = ["ugc-image-upload", "playlist-modify-public", "playlist-modify-private"]
+
+        try:
+            decoded_string = base64.b64decode(image_data)
+            im = Image.open(io.BytesIO(decoded_string))
+            im.verify()
+            if im.format != "JPEG":
+                raise ValueError("Image is not a JPEG image.")
+        except Exception as e:
+            traceback.print_exc()
+        
+        return self.get_response(f"{_playlist_id}/images", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=image_data)
 
     '''
     /me/shows
