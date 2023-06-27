@@ -1,23 +1,14 @@
 import base64
-import os
 import requests
 import json
 import traceback
 import io
 from PIL import Image
-from dotenv import load_dotenv
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, parse_qs
 from client import SpotifyClient
 
-load_dotenv()
-
-# For testing purposes, will remove later 
-client_id = os.environ.get("client_id")
-client_secret = os.environ.get("client_secret")
-redirect_uri = os.environ.get("redirect_uri")
-
 '''
-Authentication Code Flow
+Authentication Code Flow 
 
 Reference: https://developer.spotify.com/documentation/web-api/tutorials/code-flow
 '''   
@@ -37,10 +28,7 @@ class SpotifyOAuth(SpotifyClient):
                         "user-read-playback-state",
                         "user-modify-playback-state",
                         "user-read-currently-playing",
-                        "app-remote-control",
-                        "streaming",
                         "playlist-read-private",
-                        "playlist-read-collaborative",
                         "playlist-modify-private",
                         "playlist-modify-public",
                         "user-follow-modify",
@@ -51,12 +39,7 @@ class SpotifyOAuth(SpotifyClient):
                         "user-library-modify",
                         "user-library-read",
                         "user-read-email",
-                        "user-read-private",
-                        "user-soa-link",
-                        "user-soa-unlink",
-                        "user-manage-entitlements",
-                        "user-manage-partner",
-                        "user-create-partner"]
+                        "user-read-private"]
 
     def __init__(self, client_id, client_secret, redirect_uri, scopes=None, *args, **kwargs):
         super().__init__(client_id, client_secret, *args, **kwargs)
@@ -103,13 +86,11 @@ class SpotifyOAuth(SpotifyClient):
         return False
     
     def request_user_auth(self, scopes:list=None, state:str=None, show_dialog:bool=False):
-        access_token = self.access_token
         if self.validate_scopes(scopes=scopes):
             data = self.get_code_data(scopes, state, show_dialog)
         data = urlencode(data)
 
-        if access_token == None:
-            response = requests.get("https://accounts.spotify.com/authorize?" + data)
+        response = requests.get("https://accounts.spotify.com/authorize?" + data)
         if response.status_code not in range(200, 299):
             raise Exception(f"Authorization failed, could not redirect.")
         url = response.url
@@ -122,9 +103,9 @@ class SpotifyOAuth(SpotifyClient):
         if "error" in parsed_query:
             error = parsed_query["error"]
             raise Exception(f"Authorization failed, {error}")
-
         if "code" not in parsed_query:
             raise Exception("Authorization failed, the authorization code is missing")
+        
         self.code = parsed_query["code"]
         if "state" in parsed_query:
             self.state = parsed_query["state"]
@@ -210,6 +191,13 @@ class SpotifyOAuth(SpotifyClient):
         if episodes != []:
             uris_dict["episodes"] = episodes
         return uris_dict
+    
+    def parse_url_query(self, url:str):
+        parsed_url = urlparse(url)
+        if parsed_url.scheme != "https":
+            return {}
+        parsed_query = parse_qs(parsed_url.query)
+        return parsed_query
 
     '''
     GET /me/albums

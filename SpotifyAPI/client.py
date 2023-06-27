@@ -1,15 +1,11 @@
 import base64
 import datetime
-import os
 import requests
-from dotenv import load_dotenv
 from urllib.parse import urlencode
-from urllib.parse import urlparse, parse_qs
 
 class SpotifyClient(object):
     access_token = None
     access_token_expires = None
-    access_expired = True
     client_id = None
     client_secret = None
     token_url = "https://accounts.spotify.com/api/token"
@@ -66,12 +62,10 @@ class SpotifyClient(object):
             raise Exception(f"Could not authenticate client. Error: {data}")
 
         now = datetime.datetime.now()
-        access_token = data["access_token"]
-        self.access_token = access_token
+        self.access_token = data["access_token"]
         expires_in = data["expires_in"]
         expires = now + datetime.timedelta(seconds=expires_in)
         self.access_token_expires = expires
-        self.access_expired = expires < now
 
         # return data so oauth code flow can set refresh_token
         if "refresh_token" in data:
@@ -146,13 +140,6 @@ class SpotifyClient(object):
         if params == {}:
              return None
         return urlencode(params)
-    
-    def parse_url_query(self, url:str):
-        parsed_url = urlparse(url)
-        if parsed_url.scheme != "https":
-            return {}
-        parsed_query = parse_qs(parsed_url.query)
-        return parsed_query
     
     def build_endpoint(self, id, resource_type, version, query):
         endpoint = f"{self.base_url}/{version}/{resource_type}"
