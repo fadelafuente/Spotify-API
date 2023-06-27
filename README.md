@@ -4,6 +4,8 @@ This library was created for learning purposes, and makes using the Spotify API 
 ## Quick Start
 ### Client Credentials
 ```
+from SpotifyAPI import SpotifyClient
+
 client = SpotifyClient(client_id="<your-client-id>", 
   client_secret="<your-client-secret>")
   
@@ -15,6 +17,8 @@ NOTE: using code flow also has access to any data that can be obtained using the
 
 If the scopes are not passed in, then only the methods provided by client credentials can be used. The methods requiring user authorization will return an empty dictionary.
 ```
+from SpotifyAPI import SpotifyOAuth
+
 auth = SpotifyOAuth(client_id="<your-client-id>", 
   client_secret="<your-client-secret>",
   redirect_uri="<your-redirect-uri>",
