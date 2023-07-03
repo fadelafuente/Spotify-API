@@ -1,3 +1,6 @@
+
+__all__ = ["SpotifyClient"]
+
 import base64
 import datetime
 import requests
@@ -178,12 +181,7 @@ class SpotifyClient(object):
     def get_response(self, id, resource_type="albums", version="v1", query=None):
         endpoint = self.build_endpoint(id, resource_type, version, query)
         headers = self.get_access_headers()
-        response = requests.get(endpoint, headers=headers)
-
-        print(endpoint)
-
-        # if response.status_code not in range(200, 299):
-        #     return response.json()   
+        response = requests.get(endpoint, headers=headers) 
         return response.json()
     
     def check_additional_types(self, additional_types):
@@ -223,10 +221,7 @@ class SpotifyClient(object):
         if include_external != "audio":
             include_external = None
         query_params = self.create_query(q=query, type=search_type.lower(), include_external=include_external, market=market, limit=limit, offset=offset)
-        return self.get_search_response(query_params)
-
-    def get_search_response(self, query):
-        return self.get_response(-1, resource_type="search", query=query)
+        return self.get_response(-1, resource_type="search", query=query_params)
 
     '''
     GET /albums
