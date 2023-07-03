@@ -1,3 +1,6 @@
+
+__all__ = ["SpotifyOAuth"]
+
 import base64
 import requests
 import json
@@ -85,6 +88,12 @@ class SpotifyOAuth(SpotifyClient):
             return True
         return False
     
+    def get_redirect_url(self, url):
+        print(f"Follow this url: {url}")
+        print("input the redirected url: ")
+        redirected_url = input()
+        return redirected_url
+    
     def request_user_auth(self, scopes:list=None, state:str=None, show_dialog:bool=False):
         if self.validate_scopes(scopes=scopes):
             data = self.get_code_data(scopes, state, show_dialog)
@@ -94,10 +103,7 @@ class SpotifyOAuth(SpotifyClient):
         if response.status_code not in range(200, 299):
             raise Exception(f"Authorization failed, could not redirect.")
         url = response.url
-
-        print(f"Follow this url: {url}")
-        print("input the redirected url: ")
-        redirected_url = input()
+        redirected_url = self.get_redirect_url(url)
 
         parsed_query = self.parse_url_query(redirected_url)
         if "error" in parsed_query:
