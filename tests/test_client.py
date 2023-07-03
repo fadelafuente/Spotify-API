@@ -95,3 +95,16 @@ class TestClient(unittest.TestCase):
 
         response = self.client.check_additional_types(["track", "episode"])
         self.assertEqual(response, "track,episode")
+
+    def test_create_query(self):
+        response = self.client.create_query(additional_types=None, market=None)
+        self.assertEqual(response, None)
+
+        response = self.client.create_query(additional_types=["track", "album"], limit=55, offset=-55, market=None)
+        self.assertTrue(isinstance(response, str))
+        self.assertNotEqual(response, None)
+        self.assertTrue("market" not in response)
+        self.assertTrue("track,album" not in response)
+        self.assertTrue(str(self.client.max_limit) in response)
+        self.assertTrue(str(55) not in response)
+        self.assertTrue("offset=" + str(self.client.min_offset) in response)
