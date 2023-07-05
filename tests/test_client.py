@@ -1,9 +1,6 @@
-from dotenv import load_dotenv
+import unittest
 from SpotifyAPI import SpotifyClient
 from unittest.mock import patch, MagicMock
-import unittest
-
-
 
 def make_mock_get_response(status_code, return_value):
     mock_response = MagicMock(status_code=status_code)
@@ -102,9 +99,8 @@ class TestClient(unittest.TestCase):
 
         response = self.client.create_query(additional_types=["track", "album"], limit=55, offset=-55, market=None)
         self.assertTrue(isinstance(response, str))
-        self.assertNotEqual(response, None)
         self.assertTrue("market" not in response)
-        self.assertTrue("track,album" not in response)
+        self.assertTrue("track%2Calbum" not in response)
         self.assertTrue(str(self.client.max_limit) in response)
         self.assertTrue(str(55) not in response)
         self.assertTrue("offset=" + str(self.client.min_offset) in response)

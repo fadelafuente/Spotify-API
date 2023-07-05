@@ -60,7 +60,6 @@ class SpotifyClient(object):
 
         response = requests.post(token_url, data=token_data, headers=token_headers)
         data = response.json()
-
         if response.status_code not in range(200, 299):
             raise Exception(f"Could not authenticate client. Error: {data}")
 
