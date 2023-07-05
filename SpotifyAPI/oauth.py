@@ -112,7 +112,8 @@ class SpotifyOAuth(SpotifyClient):
         if "code" not in parsed_query:
             raise Exception("Authorization failed, the authorization code is missing")
         
-        self.code = parsed_query["code"]
+        # code is returned as a list, so access the first index to get the code string
+        self.code = parsed_query["code"][0]
         if "state" in parsed_query:
             self.state = parsed_query["state"]
         return True
