@@ -15,7 +15,7 @@ albums = client.get_new_releases()
 ### Authorization Code Flow
 NOTE: using code flow also has access to any data that can be obtained using the client credentials.
 
-If the scopes are not passed in, then only the methods provided by client credentials can be used. The methods requiring user authorization will return an error.
+If the scopes are not passed in, then only the methods provided by client credentials can be used. The methods requiring user authorization will return an empty dictionary.
 ```
 from SpotifyAPI import SpotifyOAuth
 

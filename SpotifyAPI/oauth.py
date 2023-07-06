@@ -139,7 +139,7 @@ class SpotifyOAuth(SpotifyClient):
     
     def get_response(self, id, resource_type="albums", version="v1", query=None, request_type="GET", required_scopes=[], data=None):
         if not self.has_required_scopes(required_scopes=required_scopes):
-            raise Exception("One or more scopes missing.")
+            return {}
         endpoint = self.build_endpoint(id, resource_type, version, query)
 
         headers = self.get_access_headers()
