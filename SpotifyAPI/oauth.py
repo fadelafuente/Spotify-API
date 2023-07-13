@@ -449,14 +449,11 @@ class SpotifyOAuth(SpotifyClient):
     def add_cover_image(self, _playlist_id:str, image_data:str):
         required_scopes = ["ugc-image-upload", "playlist-modify-public", "playlist-modify-private"]
 
-        try:
-            decoded_string = base64.b64decode(image_data)
-            im = Image.open(io.BytesIO(decoded_string))
-            im.verify()
-            if im.format != "JPEG":
-                raise ValueError("Image is not a JPEG image.")
-        except Exception as e:
-            traceback.print_exc()
+        decoded_string = base64.b64decode(image_data)
+        im = Image.open(io.BytesIO(decoded_string))
+        im.verify()
+        if im.format != "JPEG":
+            raise ValueError("Image is not a JPEG image.")
         
         return self.get_response(f"{_playlist_id}/images", resource_type="playlists", request_type="PUT", required_scopes=required_scopes, data=image_data)
 
