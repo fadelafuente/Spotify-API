@@ -1,11 +1,13 @@
 
-__all__ = ["SpotifyOAuth"]
+__all__ = ["SpotifyOAuth", "SpotifyPCKE"]
 
 import base64
 import requests
 import json
-import traceback
 import io
+import math
+import random
+from hashlib import sha256
 from PIL import Image
 from urllib.parse import urlencode, urlparse, parse_qs
 from client import SpotifyClient
@@ -578,3 +580,54 @@ class SpotifyOAuth(SpotifyClient):
         ids = self.convert_list_to_str(",", _ids)
         query_params = self.create_query(type=type, ids=ids)
         return self.get_response(-1, resource_type="me/following/contains", query=query_params, required_scopes=required_scopes)
+
+class SpotifyPCKE(SpotifyOAuth):
+    code_verifier = None
+    code_challenge = None
+
+    def generate_code_verifier(self):
+        verifier = ""
+        length = random.randint(43, 128)
+        possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        for num in range(0, length):
+            verifier += possible[math.floor(random.random() * len(possible))]   
+        # 
+        #import os
+        #rand_bytes = os.urandom(length)
+        #verifier = base64.urlsafe_b64encode(rand_bytes).decode('utf-8').replace('=', '')  
+        self.code_verifier = base64.urlsafe_b64encode(verifier.encode()).decode('utf-8').replace('=', '')
+
+    def generate_code_challenge(self):
+        challenge = sha256(self.code_verifier.encode('utf-8')).digest()
+        code_challenge = base64.urlsafe_b64encode(challenge).decode('utf-8').replace('=', '')
+        self.code_challenge = code_challenge
+
+    def set_verifier_and_challenge(self):
+        self.generate_code_verifier()
+        self.generate_code_challenge()
+    
+    def get_code_data(self, scope, state, show_dialog):
+        data = super().get_code_data(scope, state, show_dialog)
+        data["code_challenge_method"] = "S256"
+        data["code_challenge"] = self.code_challenge
+        return data
+    
+    def get_token_headers(self):
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        return headers
+    
+    def get_token_data(self):
+        data = super().get_token_data()
+        data["client_id"] = self.client_id
+        data["code_verifier"] = self.code_verifier
+        return data
+    
+    def get_refresh_data(self):
+        data = super().get_refresh_data()
+        data["client_id"] = self.client_id
+        return data
+
+
+    
