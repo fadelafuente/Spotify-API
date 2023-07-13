@@ -2,10 +2,6 @@ import base64
 import unittest
 from SpotifyAPI import SpotifyOAuth
 from unittest.mock import patch, MagicMock
-import io
-from PIL import Image
-
-unittest.TestLoader.sortTestMethodsUsing = None
 
 GET_DICT = {"id": "fake_id", "name": "fake_name", "type": "album"}
 POST_DICT = {"expires_in": 3600, "access_token": "access_token"}
@@ -142,9 +138,9 @@ class TestOAuth(unittest.TestCase):
         self.assertTrue(response)
 
     def test_09_validate_scopes(self):
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(Exception):
             self.auth.validate_scopes("fake_scope")
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(Exception):
             self.auth.validate_scopes(["ugc-image-upload",
                         "user-read-playback-state",
                         "playlist-read-private",
