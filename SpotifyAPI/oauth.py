@@ -588,19 +588,16 @@ class SpotifyPCKE(SpotifyOAuth):
     def generate_code_verifier(self):
         verifier = ""
         length = random.randint(43, 128)
-        possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
         for num in range(0, length):
             verifier += possible[math.floor(random.random() * len(possible))]   
-        # 
-        #import os
-        #rand_bytes = os.urandom(length)
-        #verifier = base64.urlsafe_b64encode(rand_bytes).decode('utf-8').replace('=', '')  
-        self.code_verifier = base64.urlsafe_b64encode(verifier.encode()).decode('utf-8').replace('=', '')
+        self.code_verifier = verifier
 
     def generate_code_challenge(self):
-        challenge = sha256(self.code_verifier.encode('utf-8')).digest()
-        code_challenge = base64.urlsafe_b64encode(challenge).decode('utf-8').replace('=', '')
-        self.code_challenge = code_challenge
+        data = self.code_verifier.encode('utf-8')
+        challenge_digest = sha256(data).digest()
+        code_challenge = base64.urlsafe_b64encode(challenge_digest).decode('utf-8')
+        self.code_challenge = code_challenge.replace('=', '')
 
     def set_verifier_and_challenge(self):
         self.generate_code_verifier()
@@ -613,21 +610,22 @@ class SpotifyPCKE(SpotifyOAuth):
         return data
     
     def get_token_headers(self):
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         return headers
     
     def get_token_data(self):
-        data = super().get_token_data()
-        data["client_id"] = self.client_id
-        data["code_verifier"] = self.code_verifier
-        return data
+        return {"grant_type": "authorization_code",
+                "code": self.code,
+                "redirect_uri": self.redirect_uri,
+                "client_id": self.client_id,
+                "code_verifier": self.code_verifier}
     
     def get_refresh_data(self):
         data = super().get_refresh_data()
         data["client_id"] = self.client_id
         return data
-
-
+    
+    def request_user_auth(self, scopes: list = None, state: str = None, show_dialog: bool = False):
+        self.set_verifier_and_challenge()
+        return super().request_user_auth(scopes, state, show_dialog)
     
