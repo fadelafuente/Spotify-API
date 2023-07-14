@@ -32,11 +32,12 @@ You can also add this line if scopes was not passed previously, or if you want t
 auth.request_user_auth(scopes=["user-library-read"])
 ```
 
-Authorization using PCKE is similar to using code flow.
+### Authorization PKCE
+Authorization using PKCE is similar to using code flow.
 ```
-from SpotifyAPI import SpotifyPCKE
+from SpotifyAPI import SpotifyPKCE
 
-auth = SpotifyPCKE(client_id=client_id, 
+auth = SpotifyPKCE(client_id=client_id, 
   client_secret=client_secret, 
   redirect_uri=redirect_uri, 
   scopes=["user-top-read"])

@@ -1,5 +1,5 @@
 
-__all__ = ["SpotifyOAuth", "SpotifyPCKE"]
+__all__ = ["SpotifyOAuth", "SpotifyPKCE"]
 
 import base64
 import requests
@@ -581,7 +581,7 @@ class SpotifyOAuth(SpotifyClient):
         query_params = self.create_query(type=type, ids=ids)
         return self.get_response(-1, resource_type="me/following/contains", query=query_params, required_scopes=required_scopes)
 
-class SpotifyPCKE(SpotifyOAuth):
+class SpotifyPKCE(SpotifyOAuth):
     code_verifier = None
     code_challenge = None
 
