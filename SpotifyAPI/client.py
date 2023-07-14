@@ -57,7 +57,7 @@ class SpotifyClient(object):
     def request_access_token(self, token_data):
         token_url = self.token_url
         token_headers = self.get_token_headers()
-
+        
         response = requests.post(token_url, data=token_data, headers=token_headers)
         data = response.json()
         if response.status_code not in range(200, 299):
